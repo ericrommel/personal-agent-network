@@ -14,7 +14,46 @@ The Human Product Owner (PO) owns product scope, privacy and authorization seman
 
 ## Traceability
 
-Every product behavior has a stable requirement ID and at least one acceptance criterion. Pull Requests list affected requirement/acceptance IDs, ADRs, verification evidence, risks, and limitations. Tests should include acceptance IDs in suite or test names. GitHub Issues and Pull Requests become the persistent work record when operational tracking begins; chat output is not sufficient.
+Every product behavior has a stable requirement ID and at least one acceptance criterion. Pull Requests list affected requirement/acceptance IDs, ADRs, verification evidence, risks, and limitations. Tests should include acceptance IDs in suite or test names. GitHub Issues and Pull Requests are the persistent work record; chat output is not sufficient.
+
+## Operational work tracking
+
+Each functional module MUST have one GitHub tracking Issue before preparation begins. The repository-level roadmap is Issue #15.
+
+When a GitHub Project board is available, the board is the operational source of truth for delivery state. Until board write access is available, the module Issue body/comments must explicitly record the current state.
+
+Use these states:
+
+```text
+Backlog
+  -> In Preparation
+  -> Ready for PO
+  -> Ready for Development
+  -> In Development
+  -> Code Review
+  -> Ready for Testing
+  -> Testing
+  -> Ready for PO Acceptance
+  -> Done
+```
+
+Preparation may start for the next planned module after the prior module is accepted. Preparation includes requirements refinement, architecture, security/privacy analysis, test design, and ExecPlan work. Preparation does NOT authorize functional implementation.
+
+At a readiness Product Owner gate, the Engineering Coordinator must:
+
+- ensure the module Issue links the relevant preparation PR and ExecPlan;
+- post a concise evidence package to the module Issue;
+- record unresolved product decisions and recommendations;
+- mark the module state `Ready for PO`;
+- stop before functional implementation.
+
+Only explicit Human Product Owner approval moves a module to `Ready for Development` and authorizes implementation of that module's approved scope.
+
+At final acceptance, the Engineering Coordinator records implementation/test/review evidence, marks the module `Ready for PO Acceptance`, and stops until explicit Human Product Owner acceptance. Only then may the module be treated as `Done`.
+
+Pull Requests implement or prepare work for a module Issue; they do not replace the Issue. Maintenance, CI, dependency, and documentation PRs that do not change product scope do not advance functional module state.
+
+The existence of a roadmap item, tracking Issue, specification, architecture document, or known future requirement is not implementation authorization.
 
 ## Definition of Ready
 
