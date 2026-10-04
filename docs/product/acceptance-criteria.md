@@ -6,7 +6,14 @@ These criteria describe observable behavior. Automated tests should include the 
 
 - **AC-ID-001 — Identity separation:** Given one owner with multiple personal agents, when identity records and public contracts are inspected, then Human Identity and each Agent Identity have distinct typed identifiers, ownership is explicit, and neither is accepted where the other is required.
 - **AC-DOM-001 — Domain separation:** Given an active relationship and an advertised availability skill, when no matching permission exists, then invocation remains denied; changing relationship, skill advertisement, or permission changes only its own record and does not implicitly change the others.
-- **AC-DIS-001 — Agent discovery:** Given a caller permitted under the approved discovery policy, when it resolves a registered identifier, then it receives only a minimal opaque agent reference. Unknown, unauthorized, and non-discoverable lookups reveal no profile, provider, relationship, context, skill, or policy information and satisfy the approved non-enumeration contract. **TBD-PO: discovery audience/identifier and observable uniformity.**
+- **AC-DIS-001 — Agent discovery:** The discovery module satisfies all of the following observable scenarios. **TBD-PO:** the caller audience, lookup identifier and normalization, negative-response/timing contract, success fields and external-reference lifecycle, configuration model, abuse/recovery semantics, and event acknowledgement require Human Product Owner approval before implementation.
+  1. **Permitted exact lookup:** Given an authenticated active caller explicitly permitted to discover a registered active target, when it submits the approved exact identifier, then it receives one versioned opaque external Agent reference and no other target data.
+  2. **Minimal success disclosure:** Given a successful lookup, when the public result is inspected, then it contains no lookup identifier, Human Identity, owner, name, profile, provider, status, endpoint, relationship, skills, policy, context, or explanation of discoverability.
+  3. **Uniform negative result:** Given otherwise equivalent lookups for an unknown, known-but-not-discoverable, disabled, ambiguous, or invalid target, when public responses are compared, then they have the approved common status, body, headers, and retry behavior, disclose no target fact, and meet the approved timing objective.
+  4. **Untrusted or invalid caller/input:** Given no trusted authenticated principal, an inactive caller, malformed input, an unexpected field, a prefix/wildcard, or an oversized request, when lookup is attempted, then it fails closed without resolution or a target-existence signal.
+  5. **No authority side effect:** Given any successful or failed lookup, when domain state is inspected, then no Human/Agent identity, relationship, trust, permission, skill authorization, or context authority was created or changed.
+  6. **Abuse resistance:** Given a caller or source exceeds an approved rolling query bound, when another lookup is attempted, then it receives the approved non-revealing bounded response, no partial result, and no target-specific signal.
+  7. **Privacy-safe evidence:** Given any lookup outcome, when authorized telemetry is inspected, then correlation, caller reference, outcome class, and control activation are reconstructable without raw email/lookup value, profile data, or returned Agent reference appearing in general logs.
 - **AC-AUTH-001 — ALLOW:** Given a current permission for the exact availability request, when the target processes a valid interval, then the response contains only `{ available: boolean }` plus safe protocol metadata; no source event or unrelated context crosses the boundary.
 - **AC-APR-001 — ASK pending:** Given `ASK` applies, when the request arrives, then exactly one bound pending approval is created and no protected result is returned.
 - **AC-APR-002 — ASK resolution:** Given a pending approval, when the authenticated owner approves that exact unexpired request, then its result may be released once. Rejection, expiry, duplicate approval, changed fields, changed policy, or another approver returns no result. **TBD-PO: approval channel, expiry, notification, and rejection semantics.**
@@ -39,14 +46,15 @@ These criteria describe observable behavior. Automated tests should include the 
 | FR-008, SEC-005, SEC-018, PRV-006 | AC-AUTH-002 |
 | FR-009, SEC-009, REL-001, REL-004 | AC-REV-001 |
 | FR-010 | AC-AUTH-001; simulated-context contract is specified with its module |
-| SEC-001–SEC-002, SEC-006–SEC-007, REL-002 | AC-MSG-001 |
+| SEC-001–SEC-002 | AC-DIS-001 (bounded trusted-principal/fail-closed contribution), AC-MSG-001 (owning authentication integration) |
+| SEC-006–SEC-007, REL-002 | AC-MSG-001 |
 | SEC-004, SEC-013 | AC-SEC-001 |
-| SEC-014, REL-003 | AC-VAL-001 |
+| SEC-014, REL-003 | AC-DIS-001, AC-VAL-001 |
 | SEC-015 | AC-CFG-001 |
 | SEC-016, DEV-002 | AC-DEV-002; CI evidence |
 | DEV-001 | AC-DEV-001 |
 | DEV-003 | AC-QE-001 |
-| SEC-017, PRV-004, PRV-005, OBS-001, OBS-002, OBS-003 | AC-AUD-001, AC-PRV-001 |
+| SEC-017, PRV-004, PRV-005, OBS-001, OBS-002, OBS-003 | AC-DIS-001, AC-AUD-001, AC-PRV-001 |
 | PRV-007 | AC-AI-001 |
 | PRV-008 | AC-DIS-001, AC-VAL-001; exact budgets are TBD-PO |
 
