@@ -25,8 +25,9 @@ A functional module is ready only when scope/non-goals, dependencies, requiremen
 - Never modify or commit directly on `main`.
 - Use `feat/<capability>`, `fix/<defect>`, `security/<control>`, `docs/<topic>`, or `chore/<task>`.
 - Keep commits focused with imperative subjects, optionally using prefixes such as `docs:` or `ci:`.
-- Require a reviewable PR, green required checks, resolved conversations, and an up-to-date branch. Do not force-push shared branches or merge without approval.
-- Begin persistent agent updates with `Role: <project role>`.
+- Require a reviewable PR, green required checks, resolved conversations, and an up-to-date branch. Do not force-push shared branches.
+- A responsible engineering agent may merge only after required CI and review gates pass, blocking findings are resolved, and any applicable explicit Human PO approval is recorded in the PR. Agents cannot grant or infer PO approval.
+- Before merging, the responsible agent must leave a persistent PR comment beginning with `Role: <project role>` and recording the merge decision and supporting gate evidence.
 
 ## Implementation and review ownership
 
