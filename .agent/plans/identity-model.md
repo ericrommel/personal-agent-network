@@ -1,6 +1,6 @@
 # Identity Model
 
-Status: Verification  
+Status: Ready for PO Acceptance  
 Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Backend Engineer, Security & Privacy Engineer, Quality Engineer  
 Last updated: 2026-10-04
 
@@ -88,7 +88,7 @@ CI must additionally pass secret scanning and CodeQL.
 - [x] 2026-10-04: Developer tests implemented; 15 tests passed with 100% statement/branch/function/line coverage.
 - [x] 2026-10-04: Independent architecture and security reviews passed after blocking findings were resolved.
 - [x] 2026-10-04: Independent QE re-review passed; module is ready for PR and PO review.
-- [ ] PR evidence prepared for PO acceptance.
+- [x] 2026-10-04: PR #5 opened; quality, secret-scan, repository CodeQL, and GitHub CodeQL passed.
 
 ## Discoveries and decision log
 
@@ -104,4 +104,5 @@ CI must additionally pass secret scanning and CodeQL.
 - Architecture review: passed after Proxy and discriminator findings were resolved.
 - Security/privacy review: passed after runtime factory/serializer validation and adversarial tests were added.
 - QE review: passed after README, ExecPlan, `AC-DOM-001`, and contract-version evidence were made current.
-- Remaining: PR CI and Human Product Owner acceptance.
+- PR #5 CI: quality, secret-scan, repository CodeQL, and GitHub CodeQL passed.
+- Remaining: Human Product Owner acceptance.
