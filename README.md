@@ -2,7 +2,7 @@
 
 Personal Agent Network (PAN) explores secure communication between personal AI agents controlled by different people. Its MVP will prove that one agent can return a useful result derived from private context while the receiving person gets only the explicitly authorized disclosure.
 
-The engineering foundation is approved and merged. The first functional module, **Identity Model**, is approved and currently in verification; later modules remain gated.
+The engineering foundation and first functional module, **Identity Model**, are approved and merged. **Privacy-Preserving Discovery** is the active preparation module under [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6); functional Discovery implementation is not yet authorized.
 
 ## Repository map
 
@@ -12,7 +12,7 @@ The engineering foundation is approved and merged. The first functional module, 
 - `docs/security/` — security principles and threat model.
 - `docs/decisions/` — Architecture Decision Records (ADRs).
 - `.agent/PLANS.md` — format for implementation plans.
-- `src/` and `tests/` — the verified foundation plus the current Identity Model implementation and developer tests.
+- `src/` and `tests/` — the verified foundation and accepted Identity Model implementation with developer tests.
 
 ## Local development
 
@@ -33,4 +33,4 @@ Never work directly on `main`. Use a focused branch and Pull Request, reference 
 
 ## Current module
 
-The Product Owner approved the **Identity Model** as the first functional module: distinct Human Identity and Agent Identity types, ownership/status invariants, and an authenticated-principal contract. It deliberately excludes discovery, credentials, networking, relationships, and authorization behavior. Work remains subject to module verification and Product Owner acceptance before completion.
+**Privacy-Preserving Discovery** has a preparation package at `Ready for PO`. Functional implementation requires explicit Human Product Owner approval on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6).
