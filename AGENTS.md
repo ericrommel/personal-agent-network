@@ -268,6 +268,12 @@ Explicit Product Owner review is required when a change materially affects:
 
 Engineering decisions that remain within approved behavior do not require unnecessary Product Owner interruption.
 
+## Merge Authority
+
+A responsible engineering agent may merge a Pull Request only after all required CI and review gates pass, all blocking findings and conversations are resolved, and any applicable explicit Human Product Owner approval is recorded in the Pull Request. Product Owner authority remains human-only; an agent may neither grant nor infer that approval.
+
+Before merging, the agent must leave a persistent Pull Request comment beginning with `Role: <project role>` that records the merge decision and supporting gate evidence.
+
 ---
 
 # Definition of Ready

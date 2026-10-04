@@ -1,0 +1,30 @@
+{
+  "name": "personal-agent-network",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Engineering foundation for the Personal Agent Network MVP",
+  "engines": {
+    "node": ">=22.12 <25",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run tests/integration --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
