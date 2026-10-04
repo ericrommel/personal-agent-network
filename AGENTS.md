@@ -276,6 +276,44 @@ Before merging, the agent must leave a persistent Pull Request comment beginning
 
 ---
 
+# Operational Tracking
+
+Each functional module must have one persistent GitHub tracking Issue before preparation begins. The repository roadmap is Issue #15.
+
+When a GitHub Project board is available, it is the operational source of truth for delivery state. Until board write access is available, the module Issue must record the current state explicitly.
+
+Use these delivery states:
+
+1. Backlog
+2. In Preparation
+3. Ready for PO
+4. Ready for Development
+5. In Development
+6. Code Review
+7. Ready for Testing
+8. Testing
+9. Ready for PO Acceptance
+10. Done
+
+The Engineering Coordinator must keep the module Issue, linked Pull Requests, ExecPlan, and actual delivery state synchronized.
+
+Preparation work may begin for the next planned module after the previous module is accepted, but preparation does not authorize functional implementation.
+
+When preparation reaches a Product Owner gate:
+
+- post the readiness evidence package to the module Issue;
+- mark the module state `Ready for PO`;
+- stop functional implementation work;
+- wait for explicit Human Product Owner authorization before moving to `Ready for Development`.
+
+When implementation reaches final acceptance, use the same pattern: record evidence, mark `Ready for PO Acceptance`, and stop until explicit Human Product Owner acceptance.
+
+Pull Requests are implementation/review artifacts for an Issue; they do not replace module tracking. Maintenance and dependency Pull Requests do not advance functional module state.
+
+The existence of a module Issue, roadmap entry, specification, or future-facing architecture does not authorize implementation.
+
+---
+
 # Definition of Ready
 
 A substantial implementation module should not begin until it has:
