@@ -1,7 +1,7 @@
 # Identity Model
 
-Status: Ready for PO Acceptance  
-Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Backend Engineer, Security & Privacy Engineer, Quality Engineer  
+Status: Ready for PO Acceptance
+Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Backend Engineer, Security & Privacy Engineer, Quality Engineer
 Last updated: 2026-10-04
 
 ## Objective
