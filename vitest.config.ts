@@ -6,6 +6,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json-summary"],
       thresholds: {
+        "src/modules/discovery/**": {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         "src/modules/identity/**": {
           branches: 100,
           functions: 100,
