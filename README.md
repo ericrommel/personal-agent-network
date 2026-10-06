@@ -33,4 +33,6 @@ Never work directly on `main`. Use a focused branch and Pull Request, reference 
 
 ## Current module
 
-**Privacy-Preserving Discovery** is `Ready for PO Acceptance` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The bounded implementation is complete and is waiting for explicit Human Product Owner acceptance. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement. Relationships, Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.
+**Privacy-Preserving Discovery** is `Done` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The Human Product Owner accepted it on 2026-10-06, and PR #19 is merged. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement.
+
+**Relationships** is `In Preparation` on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). Preparation is not implementation authorization. Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.

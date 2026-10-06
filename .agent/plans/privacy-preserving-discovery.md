@@ -1,6 +1,6 @@
 # Privacy-Preserving Discovery
 
-Status: Ready for PO Acceptance
+Status: Complete
 Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Security & Privacy Engineer, Backend Engineer, Quality Engineer
 Last updated: 2026-10-06
 Tracking: GitHub Issue #6; roadmap Issue #15; ADR-0005
@@ -79,7 +79,8 @@ The preparation PR additionally requires documentation link/consistency review a
 - [x] 2026-10-04: Issue #6 moved to `In Development` on `feat/privacy-preserving-discovery`.
 - [x] 2026-10-06: Implemented the bounded module and developer tests, including commit-failure events, own-property source checks, ambiguous grants, alias rejection, event allowlists, and no target-keyed budget input.
 - [x] 2026-10-06: Architecture/security review PASS. QE review PASS for the bounded domain module after four test gaps were closed.
-- [x] 2026-10-06: Final local verification recorded below. Stop at `Ready for PO Acceptance`. Do not merge without explicit Human Product Owner acceptance and green required CI.
+- [x] 2026-10-06: Final local verification recorded below. Evidence posted at `Ready for PO Acceptance`.
+- [x] 2026-10-06: Human Product Owner accepted the module. Required CI was green on `0483452bc5aee4f9f6df0420ccd859bd3041ddec`, with no unresolved review threads. PR #19 squash-merged as `c15fc86b89296ee0d7725226e49e90f225c9c412`. Issue #6 is closed and Done.
 
 ## Discoveries and decision log
 
@@ -94,7 +95,7 @@ The preparation PR additionally requires documentation link/consistency review a
 
 ## Handoff and completion evidence
 
-The bounded module is ready for explicit Human Product Owner acceptance. This plan does not record that acceptance. Merge remains blocked until that acceptance is on the implementation PR and required CI and review gates pass.
+The Human Product Owner accepted this module on 2026-10-06. PR #19 merged to `c15fc86b89296ee0d7725226e49e90f225c9c412` from approved head `0483452bc5aee4f9f6df0420ccd859bd3041ddec`. Issue #6 is closed. The merge-evidence comment is https://github.com/ericrommel/personal-agent-network/pull/19#issuecomment-6010660345.
 
 Local environment: Node v22.13.1, npm 10.9.2, Windows x64. `npm ci` was required because `node_modules` was absent. It added 53 packages from the lockfile and reported 0 vulnerabilities.
 
@@ -167,4 +168,4 @@ Not claimed, and not implemented in order to manufacture evidence:
 
 ### Delivery note
 
-The command block above was run on 2026-10-06 against the tree that includes this evidence. `npm run verify` passed with 34 tests and 100% statements, branches, functions, and lines. `npm run build` passed. `npm audit --audit-level=high` found 0 vulnerabilities. `git diff --check` passed. This delivery-note sentence was added after that run; it changes no executable file. Required CI (quality, secret scan, CodeQL) is evidence only after the implementation PR runs it. Human Product Owner acceptance is not inferred.
+The command block above was run on 2026-10-06 against the tree that includes this evidence. `npm run verify` passed with 34 tests and 100% statements, branches, functions, and lines. `npm run build` passed. `npm audit --audit-level=high` found 0 vulnerabilities. `git diff --check` passed. This delivery-note sentence was added after that run; it changes no executable file. Required CI on the approved head was green before merge: quality, secret-scan, codeql, and CodeQL on run 37395881774. Human Product Owner acceptance was the explicit 2026-10-06 instruction to complete the merge workflow. This closing note does not change executable files.
