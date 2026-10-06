@@ -1,6 +1,6 @@
 # Discovery Architecture and Threat Analysis
 
-Status: Preparation proposal; not approved for implementation  
+Status: Reconciled to ADR-0005 and the Human Product Owner approval on Issue #6. This analysis does not authorize scope beyond that approval.
 Owner roles: Software Architect, Security & Privacy Engineer  
 Requirements: `FR-002`, `SEC-002`, `SEC-012`, `SEC-014`, `SEC-017`, `SEC-018`, `PRV-001`, `PRV-004`, `PRV-006`, `PRV-008`, `REL-003`
 
@@ -19,7 +19,8 @@ untrusted lookup input
   -> discovery-policy decision
   -> identifier directory lookup
   -> minimal-reference projection
-  -> response normalization and safe audit event
+  -> atomic current-state validation + minimized success-event commit
+  -> response normalization
 ```
 
 The caller-to-Discovery edge is a privacy trust boundary. The identity directory and discovery
@@ -62,8 +63,11 @@ or reference format.
   aggregate/global, and time dimensions without confirming which dimension caused refusal.
   Target-scoped enforcement is deferred unless a later privacy review shows it cannot become an
   existence oracle.
-- **Safe audit port:** records correlation, coarse actor reference, outcome/reason class, and budget
-  action; it excludes raw identifiers, message bodies, credentials, and returned references.
+- **Disclosure-commit port:** atomically revalidates the exact active grant snapshot, current target
+  eligibility, and reference while persisting/acknowledging the minimized success event. Only exact
+  success permits synchronous disclosure with no later await.
+- **Negative-event port:** records correlation, coarse actor reference, private outcome/reason class,
+  and budget action for failed attempts; it excludes raw identifiers, credentials, and references.
 - **Response normalizer:** maps private failure reasons to the approved non-revealing public result.
 
 These are logical ports inside the modular monolith, not services. No broker, external directory,
@@ -72,12 +76,12 @@ this preparation work.
 
 ## Fail-closed behavior
 
-The recommended fail-closed contract returns no reference when caller evidence required by policy is absent or invalid, input is
+The approved fail-closed contract returns no reference when caller evidence required by policy is absent or invalid, input is
 malformed, identity eligibility cannot be established, policy or directory state is missing/stale,
-the reference projector fails, the abuse budget cannot be checked atomically, or—if the PO approves
-the recommended acknowledgement gate—the required event port fails. Internal distinctions are retained only as minimized reason classes for
-authorized operations; they are not reflected in the caller response. The PO gate must confirm
-whether required event-port acknowledgement blocks disclosure; durable audit behavior is deferred.
+the reference projector fails, the abuse budget cannot be checked atomically, or the atomic
+disclosure commit fails or is indeterminate. Internal distinctions are retained only as minimized
+reason classes for authorized operations; they are not reflected in the caller response. Durable
+audit behavior is deferred.
 
 Timeouts and dependency errors consume bounded work and produce the same public failure family as
 unknown, unauthorized, non-discoverable, and ineligible identities under the approved observable
@@ -107,10 +111,10 @@ coarse response behavior, measurement, and layered budgets.
 
 ## Dependencies and non-goals
 
-Preparation depends on the accepted identity separation and authenticated-principal contract, but
-Discovery implementation is blocked on approved decisions for discovery audience/identifier,
-observable uniformity, reference lifecycle, and abuse budgets. It also needs module-level
-acceptance criteria, a test plan, and an ExecPlan before its Ready gate.
+Preparation depended on the accepted identity separation and authenticated-principal contract.
+The Human Product Owner approved the discovery audience, identifier, response uniformity,
+reference lifecycle, and abuse-budget dimensions on Issue #6. ADR-0005 records that contract.
+This analysis does not add scope.
 
 Authentication technology, transport integrity, persistence, relationship creation, invitation
 flows, messaging, skills, authorization for context, profiles, global/federated search, and email
@@ -120,14 +124,8 @@ durability, or network security.
 
 ## ADR assessment and recommendations
 
-No ADR is created by this analysis. ADR-0003 already establishes Discovery as a distinct boundary
-that cannot grant authority, and ADR-0004 already selects PostgreSQL when transactional persistence
-is introduced. Choosing an identifier/audience, external reference lifecycle, public response
-uniformity, or concrete abuse policy now would resolve Product Owner or later protocol decisions
-prematurely.
-
-Before implementation, record a consequential Discovery contract ADR after the Product Owner
-approves those semantics. A separate authentication ADR belongs to the future ingress/messaging
-work unless the approved Discovery audience makes authentication a direct Discovery dependency.
-The implementation proposal should remain a small in-process module with replaceable ports until
-evidence requires a distributed directory or different protocol.
+ADR-0005 records the approved Discovery contract. ADR-0003 establishes Discovery as a distinct
+boundary that cannot grant authority, and ADR-0004 selects PostgreSQL when transactional
+persistence is introduced. A separate authentication ADR belongs to the future ingress/messaging
+work. The implementation remains a small in-process module with replaceable ports until evidence
+requires a distributed directory or different protocol.
