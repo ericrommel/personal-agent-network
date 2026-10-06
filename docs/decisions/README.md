@@ -12,6 +12,7 @@ Statuses are `Proposed`, `Accepted`, `Superseded`, or `Rejected`. Accepted ADR c
 | [0002](0002-typescript-node-toolchain.md) | Accepted | Strict TypeScript and Node toolchain |
 | [0003](0003-domain-and-trust-boundaries.md) | Accepted | Separate domain concepts and deterministic security enforcement |
 | [0004](0004-postgresql-persistence.md) | Accepted | PostgreSQL for transactional state when persistence begins |
+| [0005](0005-discovery-contract.md) | Accepted | Privacy-preserving Discovery contract |
 
 ## Template
 

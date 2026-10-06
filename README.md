@@ -2,7 +2,7 @@
 
 Personal Agent Network (PAN) explores secure communication between personal AI agents controlled by different people. Its MVP will prove that one agent can return a useful result derived from private context while the receiving person gets only the explicitly authorized disclosure.
 
-The engineering foundation and first functional module, **Identity Model**, are approved and merged. **Privacy-Preserving Discovery** is the active preparation module under [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6); functional Discovery implementation is not yet authorized.
+The engineering foundation and first functional module, **Identity Model**, are approved and merged. **Privacy-Preserving Discovery** is the active implementation module under [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6), following explicit Human Product Owner approval of its bounded scope.
 
 ## Repository map
 
@@ -33,4 +33,4 @@ Never work directly on `main`. Use a focused branch and Pull Request, reference 
 
 ## Current module
 
-**Privacy-Preserving Discovery** has a preparation package at `Ready for PO`. Functional implementation requires explicit Human Product Owner approval on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6).
+**Privacy-Preserving Discovery** is `Ready for PO Acceptance` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The bounded implementation is complete and is waiting for explicit Human Product Owner acceptance. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement. Relationships, Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.

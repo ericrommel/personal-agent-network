@@ -5,7 +5,7 @@ These requirements are normative. `MUST` indicates blocking MVP behavior. Produc
 ## Functional
 
 - **FR-001:** Human Identity and Agent Identity MUST be distinct records; a human may own one or more agents.
-- **FR-002:** A discovery request from a caller eligible under the approved discovery policy MUST resolve an exact registered identifier to only one versioned, minimal, opaque external Agent reference. Resolution MUST NOT expose the internal Agent Identity ID or create or imply a relationship, trust, permission, skill access, context access, or execution authority. **TBD-PO:** exact identifier, caller eligibility, and external-reference semantics.
+- **FR-002:** A discovery request from an authenticated, active Agent Identity with a pre-seeded caller/target discoverability grant MUST resolve an exact registered email identifier to only one versioned, minimal, opaque external Agent reference. Discovery MUST accept ASCII email input only, reject surrounding/internal whitespace and non-ASCII forms, and compare after lowercasing the entire ASCII address without provider-specific, alias, or fuzzy transformations. The reference MUST be caller-scoped, remain usable only while that grant and target eligibility remain active, and rotate if a revoked grant is recreated. Resolution MUST NOT expose the internal Agent Identity ID or create or imply a relationship, trust, permission, skill access, context access, or execution authority.
 - **FR-003:** Relationship state, advertised skills, and skill permissions MUST be represented independently.
 - **FR-004:** The MVP MUST support a versioned `availability` skill accepting a bounded time interval and returning a boolean.
 - **FR-005:** Every request MUST be evaluated against authenticated requester, target, current relationship, skill, purpose/scope, and policy before context access.
@@ -30,24 +30,24 @@ These requirements are normative. `MUST` indicates blocking MVP behavior. Produc
 - **SEC-009:** Revocation MUST be checked at decision time and immediately before context access or disclosure; applicable pending approvals and cached grants MUST be invalidated.
 - **SEC-010:** Context and tool adapters MUST accept authority only from the trusted policy result, never remote text or model output.
 - **SEC-011:** Egress MUST enforce an authorized output schema and reject unexpected fields.
-- **SEC-012:** Discovery and authorization failures MUST use non-revealing responses and abuse controls. **TBD-PO for Discovery:** approve the proposed exact-only bounded lookup with no bulk, prefix, or suggestion behavior and the public abuse/recovery semantics.
+- **SEC-012:** Discovery and authorization failures MUST use non-revealing responses and abuse controls. Discovery MUST use exact-only bounded lookup with no bulk, prefix, or suggestion behavior; layered caller, source/network, and aggregate/global budgets; no target-specific counter without later privacy approval; and recovery/retry behavior that reveals neither the limiter nor target existence.
 - **SEC-013:** External AI output MUST be treated as untrusted and MUST NOT make final authorization decisions or directly invoke tools.
 - **SEC-014:** Inputs MUST have schema, size, range, time, and resource bounds.
 - **SEC-015:** Production modes MUST reject placeholder secrets, debug authentication, and insecure transport configuration.
 - **SEC-016:** Dependencies MUST be locked and subject to blocking secret, vulnerability, and static-analysis gates with time-bounded recorded exceptions.
-- **SEC-017:** Security decisions and request state changes MUST produce access-controlled, correlated audit events without raw private context.
+- **SEC-017:** Security decisions and request state changes MUST produce access-controlled, correlated audit events without raw private context. Discovery MUST receive acknowledgement for its minimized event before successful disclosure and MUST fail closed if emission or acknowledgement fails; durable event handling remains deferred to Audit.
 - **SEC-018:** Unauthorized responses MUST NOT reveal whether protected context exists or why private policy denied access.
 
 ## Privacy
 
-- **PRV-001:** Discovery MUST disclose only the approved versioned opaque external Agent reference. It MUST NOT disclose the internal Agent Identity ID, lookup identifier, Human Identity, owner, profile, provider, status, relationship, context, skill, policy, or other routing data unless separately approved as necessary. **TBD-PO:** exact success fields and reference lifecycle/correlation semantics.
+- **PRV-001:** Discovery MUST disclose only the contract version and a caller-scoped opaque external Agent reference. Different callers MUST NOT receive a globally correlatable stable reference for the same target. Discovery MUST NOT disclose the internal Agent Identity ID, lookup identifier, Human Identity, owner, profile, provider, status, endpoint/routing data, relationship, context, skill, or policy.
 - **PRV-002:** A successful invocation MUST disclose only the authorized boolean result and safe protocol metadata.
 - **PRV-003:** Private context MUST remain behind the target's context boundary and be queried only after valid authorization/approval.
 - **PRV-004:** Logs, traces, metrics, and audit MUST exclude raw context, message bodies, prompts, secrets, credentials, and derived results by default.
 - **PRV-005:** Private data and audit events MUST have documented purpose, access, retention, and deletion rules.
-- **PRV-006:** Denied, rejected, expired, malformed, unknown, and unauthorized outcomes MUST minimize inference through response differences. **TBD-PO for Discovery:** approve which negative classes share a uniform public status, body, headers, retry behavior, and timing objective.
+- **PRV-006:** Denied, rejected, expired, malformed, unknown, and unauthorized outcomes MUST minimize inference through response differences. Discovery's unknown, non-discoverable, disabled, ambiguous, malformed, and otherwise ineligible lookups MUST share one public status family, body shape, header behavior, and retry behavior. Perfect constant-time behavior is not required, but Security/QE MUST enforce approved statistical timing thresholds.
 - **PRV-007:** External AI providers MUST receive only explicitly approved minimum data and remain disabled for private context by default.
-- **PRV-008:** Repeated queries MUST be constrained when composition could infer protected context.
+- **PRV-008:** Repeated queries MUST be constrained when composition could infer protected context. Discovery MAY use process-local budgets that reset on restart for the MVP, but MUST document that limitation, MUST NOT claim durable or multi-instance protection, and MUST expose only coarse privacy-safe abuse events without raw identifiers or per-target details.
 
 ## Reliability and observability
 

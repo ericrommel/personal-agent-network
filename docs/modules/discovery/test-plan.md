@@ -2,7 +2,7 @@
 
 ## Purpose, scope, and ownership
 
-This plan defines independent, risk-based verification for Issue #6 and `AC-DIS-001`. It is preparation evidence, not authorization to implement Discovery. The Backend Engineer owns all unit, component, contract, and integration tests for the implementation. QE reviews traceability, partitions, test quality, coverage, and results; performs exploratory verification; and converts confirmed defects into developer-owned regression cases. Security reviews enumeration, caller trust, fail-closed behavior, abuse controls, reference disclosure, and telemetry leakage.
+This plan defines independent, risk-based verification for the Human Product Owner-approved implementation on Issue #6 and `AC-DIS-001`. The Backend Engineer owns all unit, component, contract, and integration tests for the implementation. QE reviews traceability, partitions, test quality, coverage, and results; performs exploratory verification; and converts confirmed defects into developer-owned regression cases. Security reviews enumeration, caller trust, fail-closed behavior, abuse controls, reference disclosure, and telemetry leakage.
 
 All fixtures MUST be synthetic. Test names MUST include `AC-DIS-001` and, where applicable, `AC-VAL-001`, `AC-AUD-001`, or `AC-DEV-003`.
 
@@ -33,13 +33,13 @@ Exercise the application service through its public port with deterministic fake
 
 For unknown, unlisted, disabled, ambiguous, malformed, dependency-failed, and over-budget cases, compare status, body, headers, error shape, reference absence, and retry metadata. Private reason classes may differ only in the access-controlled audit sink. No test should assert internal reason text through the public contract.
 
-Verify calls are bounded: validation precedes expensive work, no fuzzy/bulk/list operation is reachable, dependency calls have deadlines, and a failed or indeterminate atomic budget check prevents directory resolution and disclosure. Reference projection failure must suppress an otherwise valid result. Event-port failure must also suppress it if the PO approves the recommended acknowledgement gate.
+Verify calls are bounded: validation precedes expensive work, no fuzzy/bulk/list operation is reachable, dependency calls have deadlines, and a failed or indeterminate atomic budget check prevents directory resolution and disclosure. Reference projection failure must suppress an otherwise valid result. The final disclosure-commit port must atomically revalidate current grant/reference/target state and acknowledge the minimized success event; false, malformed, thrown, revoked, replaced, or ineligible outcomes suppress disclosure, and no asynchronous work occurs after an exact successful commit.
 
 ### Abuse, concurrency, and integration tests
 
 Developer-owned integration tests MUST use the real persistence implementation when introduced and cover:
 
-- simultaneous requests at `limit - 1`, `limit`, and `limit + 1`, proving atomic enforcement without excess successes;
+- same-event-loop requests at `limit - 1`, `limit`, and `limit + 1`, proving synchronous process-local enforcement without excess successes; this is not a multi-worker or multi-instance claim;
 - per-caller, source, and aggregate/global dimensions approved for the module, including rollover, parallel retries, and cardinality pressure; a target-specific dimension is tested only if a later privacy review approves it;
 - disabled, revoked, or discoverability-changed records taking effect at the approved boundary without stale positive cache authority;
 - transaction failure, timeout, malformed dependency output, unavailable directory/policy/budget/audit stores, and restart behavior;
@@ -65,19 +65,20 @@ QE independently samples the decision table, malformed partitions, boundary valu
 
 Acceptance evidence may claim `FR-002`, `SEC-012`, `SEC-014`, `SEC-018`, `PRV-001`, `PRV-006`, `PRV-008`, and the Discovery contribution to `REL-003`. It may claim only bounded contributions to authentication and audit requirements until their owning integrations exist.
 
-## Product Owner-dependent test parameters
+## Approved parameters and delegated verification
 
-Before this plan is executable, the approved contract must fix:
+Issue #6 and ADR-0005 fix the following product contract:
 
-1. caller audience and active/eligibility semantics;
-2. identifier syntax, canonicalization, encoding, ambiguous Unicode/alias behavior, and length rules, including any numeric bounds delegated to Security/engineering;
-3. success field name, external-reference format, lifetime, rotation, and cross-caller correlation rules;
-4. common negative status, body, headers, and retry behavior;
-5. timing objective and any PO constraints on recovery/retry behavior; subject to PO delegation, Security/QE own the measurement environment, sample/tolerance method, numeric tolerance, and blocking policy;
-6. discoverability configuration and change-effect boundary;
-7. permitted budget dimensions and legitimate recovery/owner-visibility behavior; subject to PO delegation, Security/engineering own concrete values, windows, and rollover mechanics;
-8. the minimized Discovery event fields and whether event-port acknowledgement is required before disclosure; the preparation package recommends fail-closed acknowledgement. Durable audit storage, access, retention, export, and deletion remain deferred to the Audit module.
+1. authenticated, active, explicitly pre-seeded caller eligibility, proved here with synthetic trusted evidence rather than deployable authentication;
+2. ASCII-only, whitespace-free email lowercasing with no provider-specific, alias, Unicode, prefix, wildcard, or fuzzy behavior; Security/engineering own standards-based numeric bounds;
+3. a caller-and-grant-scoped external reference, stable only for the active grant, invalid after revocation/ineligibility, and rotated on grant recreation;
+4. one public negative status family, body, headers, and retry behavior across all negative classes;
+5. pre-seeded grants with no invitation or management workflow;
+6. caller, trusted-source, and aggregate process-local budgets with no target counter, explicit restart reset, and numeric values/windows delegated to Security/engineering;
+7. atomic current-state validation plus minimized success-event acknowledgement before disclosure, failing closed when unavailable or indeterminate; durable Audit behavior remains deferred.
+
+Security/QE own the controlled timing environment, sampling method, tolerance, and blocking policy. This module can complete deterministic domain-response equivalence, but public status/header/retry equivalence remains bounded evidence until a separately approved transport exists. Acceptance evidence must state both limitations rather than treating coverage as proof.
 
 ## Readiness exit
 
-The test design is ready when the Product Owner-dependent parameters are resolved, every approved observable behavior maps to an automated suite and owner, integration dependencies are identified, the coverage configuration is planned, and Security and QE record no blocking gap. The preparation package consistently recommends a distinct opaque external `agentReference`; its exact lifecycle remains a Product Owner decision. Implementation and test creation begin only after explicit Human Product Owner authorization moves Issue #6 to `Ready for Development`.
+The implementation is ready for final Product Owner acceptance only when every in-scope behavior maps to developer evidence, all configured coverage and repository gates pass, controlled timing evidence is recorded or explicitly bounded, and Security and QE report no blocker. Public transport behavior, production authentication, durable/multi-instance budgets, downstream reference consumption, and durable Audit capabilities must remain explicit deferred evidence rather than implied completion claims.
