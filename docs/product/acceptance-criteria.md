@@ -2,6 +2,8 @@
 
 These criteria describe observable behavior. Automated tests should include the `AC-*` identifier in their name. `TBD-PO` criteria cannot be finalized until the linked Product Owner decision is resolved.
 
+Relationships preparation does not complete `AC-DOM-001` or `AC-REV-001`. The module proposal can cover a distinct local record and the next local read after revoke. Invocation denial, pending-approval invalidation, and the in-flight boundary remain later work. The in-flight note on `AC-REV-001` is still unresolved.
+
 ## Criteria
 
 - **AC-ID-001 — Identity separation:** Given one owner with multiple personal agents, when identity records and public contracts are inspected, then Human Identity and each Agent Identity have distinct typed identifiers, ownership is explicit, and neither is accepted where the other is required.

@@ -2,6 +2,8 @@
 
 These requirements are normative. `MUST` indicates blocking MVP behavior. Product decisions marked `TBD-PO` remain unresolved and block the affected module.
 
+Relationships preparation is tracked on Issue #7. The proposed lifecycle and the six open decisions are in `docs/modules/relationships/specification.md`. That proposal is not approved. It does not change the normative sentences below.
+
 ## Functional
 
 - **FR-001:** Human Identity and Agent Identity MUST be distinct records; a human may own one or more agents.

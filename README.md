@@ -35,4 +35,4 @@ Never work directly on `main`. Use a focused branch and Pull Request, reference 
 
 **Privacy-Preserving Discovery** is `Done` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The Human Product Owner accepted it on 2026-10-06, and PR #19 is merged. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement.
 
-**Relationships** is `In Preparation` on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). Preparation is not implementation authorization. Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.
+**Relationships** is `Ready for PO` on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). The preparation package is waiting for explicit Human Product Owner authorization before any functional implementation. Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.
