@@ -225,6 +225,10 @@ describe("skill advertisement service", () => {
       code("SKILL_ADVERTISEMENT_COMMAND_INVALID"),
     );
     expect(store.findCurrent(AGENT, VERSION)).toBeNull();
+    expect(store.findCurrent(discovery, VERSION)).toBeNull();
+    expect(store.findCurrent(human, VERSION)).toBeNull();
+    expect(recorded.length).toBeGreaterThan(0);
+    expect(recorded.every((event) => event.outcome === "rejected")).toBe(true);
     expect(recorded.every((event) => Object.keys(event).join() === EVENT_KEYS.join())).toBe(true);
   });
 
@@ -263,20 +267,24 @@ describe("skill advertisement service", () => {
     );
     expect(failing.store.findCurrent(AGENT, VERSION)).toBeNull();
 
-    const store = new InMemorySkillAdvertisementStore({
+    let withdrawObserved = false;
+    const sink: SkillAdvertisementEventSink = {
       record(event) {
-        if (event.command === "withdraw") {
+        if (event.command === "withdraw" && event.outcome === "accepted") {
+          withdrawObserved = true;
           throw new Error("withdraw observer failed");
         }
       },
-    });
+    };
+    const store = new InMemorySkillAdvertisementStore(sink);
     const service = new SkillAdvertisementService({
-      events: { record() {} },
+      events: sink,
       store,
       parties: { findAgent: async (id) => (id === AGENT ? agent(AGENT) : null) },
     });
     const created = unwrap(await service.advertise(source(), advertiseCommand()));
     const withdrawn = await service.withdraw(source(), withdrawCommand(created.id));
+    expect(withdrawObserved).toBe(true);
     expect(withdrawn.ok).toBe(true);
     expect(store.findCurrent(AGENT, VERSION)).toMatchObject({
       id: created.id,
@@ -415,7 +423,7 @@ describe("skill advertisement service", () => {
     expect(await service.readAdvertised(AGENT, VERSION)).toBe(false);
   });
 
-  it("treats a fresh store as a restart and does not insert a withdrawn record", () => {
+  it("a new empty store has no advertisement and refuses a withdrawn insert", () => {
     const store = new InMemorySkillAdvertisementStore({ record() {} });
     const withdrawn = {
       ...unwrap(createSkillAdvertisement(AGENT)),
