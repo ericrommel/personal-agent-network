@@ -29,17 +29,17 @@ Prove that two independently controlled Personal Agent nodes can exchange a usef
 
 The final MVP evidence must exercise two separately configured node instances through the public contract. The receiver alone authorizes access, private context remains local, and the caller sees only the permitted boolean plus safe protocol metadata.
 
-This scope does not authorize implementation. Modules proceed only through the process and Product Owner gates in `docs/engineering/development-process.md`.
+This scope does not by itself authorize a slice that crosses a Reserved Product Decision. Modules proceed under `docs/engineering/development-process.md`. Human Product Owner review is asynchronous. Open decisions below block only the behavior they name.
 
-## Product Owner decisions before affected modules
+## Product decisions and their current state
 
-1. Who may discover whom, which lookup identifier is used, and whether absent and non-discoverable identities must be externally indistinguishable.
-2. Whether availability is an instant or half-open interval, its timezone/DST rules, maximum horizon/duration, query budget, and whether output is strictly boolean.
-3. Whether MVP purpose is fixed to `availability_check` or owner/requester supplied.
-4. ASK interaction: approval channel, information shown to the owner, expiry, notification/polling, rejection, and duplicate behavior.
-5. Revocation behavior for pending approvals and computed-but-undelivered results; recommendation: invalidate both, with no attempt to retract delivered results.
-6. Whether relationships are pre-seeded for the MVP (recommended) or require an invitation/acceptance flow.
-7. Who may inspect/export/delete audit records, retention duration, and confirmation that derived results are omitted by default.
-8. Demonstration surface (API/CLI or minimal UI) and whether the final MVP must run two processes; recommendation: two instances for acceptance.
+1. Discovery lookup and indistinguishable negative results are accepted with Privacy-Preserving Discovery, Issue #6.
+2. Availability instant versus half-open interval, timezone/DST, horizon, duration, and query budget remain reserved. Boolean output is already required. See Product Review Queue PRQ-004. Issue #10 owns interpretation.
+3. Whether MVP purpose is fixed to `availability_check` or supplied by the owner or requester remains reserved. See PRQ-003.
+4. ASK interaction remains reserved: approval channel, information shown to the owner, expiry, notification or polling, rejection, and duplicate behavior. See PRQ-006.
+5. Revocation behavior for pending approvals and computed-but-undelivered results remains reserved. Recommendation: invalidate both, with no attempt to retract delivered results. See PRQ-007.
+6. Relationships are pre-seeded for this module. The Human Product Owner approved that on Issue #7. Invitation and acceptance stay out of scope.
+7. Audit inspect, export, retention, and deletion authority remain reserved. Derived results stay omitted by default. See PRQ-008.
+8. The demonstration surface remains reserved. Recommendation: two processes and a thin local API or CLI. See PRQ-009.
 
 Agent credential technology, replay windows, database driver, and CI implementation details remain engineering/security decisions unless they change these product semantics.

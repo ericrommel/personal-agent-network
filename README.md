@@ -2,12 +2,12 @@
 
 Personal Agent Network (PAN) explores secure communication between personal AI agents controlled by different people. Its MVP will prove that one agent can return a useful result derived from private context while the receiving person gets only the explicitly authorized disclosure.
 
-The engineering foundation and first functional module, **Identity Model**, are approved and merged. **Privacy-Preserving Discovery** is the active implementation module under [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6), following explicit Human Product Owner approval of its bounded scope.
+The engineering foundation, **Identity Model**, and **Privacy-Preserving Discovery** are accepted. **Relationships** is in development under [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). Later modules proceed in parallel when their hard dependencies allow it.
 
 ## Repository map
 
 - `docs/product-overview.md` — product vision and boundaries.
-- `docs/product/` — MVP scope, requirements, and acceptance criteria.
+- `docs/product/` — MVP scope, requirements, acceptance criteria, and the [Product Review Queue](docs/product/review-queue.md).
 - `docs/engineering/` — architecture and delivery process.
 - `docs/security/` — security principles and threat model.
 - `docs/decisions/` — Architecture Decision Records (ADRs).
@@ -29,10 +29,12 @@ npm start
 
 ## Contribution workflow
 
-Never work directly on `main`. Use a focused branch and Pull Request, reference requirement and acceptance-criteria IDs, record consequential decisions in ADRs, and stop at Product Owner gates. See [AGENTS.md](AGENTS.md) and [the development process](docs/engineering/development-process.md).
+Never work directly on `main`. Use a focused branch and Pull Request, reference requirement and acceptance-criteria IDs, and record consequential decisions in ADRs. Human Product Owner checkpoints are asynchronous. Continue unless the work is unsafe or a Reserved Product Decision. See [AGENTS.md](AGENTS.md), [the development process](docs/engineering/development-process.md), and [the Product Review Queue](docs/product/review-queue.md).
 
 ## Current module
 
 **Privacy-Preserving Discovery** is `Done` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The Human Product Owner accepted it on 2026-10-06, and PR #19 is merged. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement.
 
-**Relationships** is `Ready for PO` on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). The preparation package is waiting for explicit Human Product Owner authorization before any functional implementation. Messaging, general Authorization/Policy, public transport, production authentication, and later modules remain excluded.
+**Relationships** is `In Development` on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). The Human Product Owner approved PO-REL-1 through PO-REL-6 on 2026-10-06. The slice is pre-seeded, directed, node-local, and process-local. It does not include invitation, remote mutation, skill permission, or restart-safe revocation.
+
+**Skills and Policy** is `In Preparation` on [Issue #8](https://github.com/ericrommel/personal-agent-network/issues/8). Authenticated Messaging, Context Boundary, Approval Lifecycle, Audit, and the Two-Node MVP are also in preparation. External AI remains post-core-MVP. Open reserved decisions are listed in the Product Review Queue and block only their own workstreams.
