@@ -60,23 +60,25 @@ Status values:
 - Reversibility: invitation, durability, and remote protocol behavior were not
   built, so those later choices remain open. The in-memory semantics can be
   replaced by a PostgreSQL adapter behind the same port.
-- Implementation status: `In Development` in PR #46. Local verification passed.
-  Final engineering acceptance is not claimed. Security and QE review of the
-  code are still required.
-- Tests and evidence: preparation package in PR #32. PR #46 has developer tests
-  for the next local read, direction, rollback, and separation. In-flight
-  revocation is not claimed.
-- Residual risks: preparation Security and Architecture runs timed out. An
-  independent implementation review is still required. In-memory revocation
-  disappears on restart.
+- Implementation status: Engineering Accepted and `Done` for this slice.
+  Merged in PR #46 as `2e04c6a`. `readActive` checks the same row again after a
+  party lookup, so a revoke during that wait does not return active.
+- Tests and evidence: preparation package in PR #32. PR #46 developer tests
+  cover the next local read, one-sided direction, rollback, malformed rows, and
+  minimized events. CI was green. Security reported no blocking finding.
+  Quality Engineering reported the evidence gaps closed. In-flight approval is
+  not claimed.
+- Residual risks: preparation Security and Architecture runs timed out. The
+  implementation review did not waive that. In-memory revocation disappears on
+  restart. An in-process caller can construct the trusted-source object because
+  that boundary is local by PO-REL-4.
 - Deferred limitations: no invitation UX, no remote relationship API, no
   PostgreSQL in this slice, no skill permission, and no in-flight approval
   behavior.
-- Human PO review status: `Ratified` for development on Issue #7. Completion
-  ratification waits until engineering records `Engineering Accepted`. The
-  2026-10-06 note that asked engineering to stop at final acceptance is
-  superseded for process by PRQ-001. It is not rewritten into an earlier final
-  acceptance.
+- Human PO review status: `Ratified` for development on Issue #7. Completion is
+  `PO review pending`. The 2026-10-06 note that asked engineering to stop at
+  final acceptance is superseded for process by PRQ-001. It is not rewritten
+  into an earlier final acceptance.
 
 ## PRQ-003 — Fixed availability purpose
 
