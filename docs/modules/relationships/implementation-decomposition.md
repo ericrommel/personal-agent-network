@@ -1,16 +1,15 @@
 # Relationships Implementation Decomposition
 
-Status: Proposal only. Implementation is not authorized.
+Status: Authorized implementation contract. Issue #7 approved this slice on 2026-10-06.
 Date: 2026-10-06
 Owner role: Backend Engineer
 Parent: Issue #7. This note executes preparation Issue #22.
 Baseline: Discovery is merged on main at `c15fc86b89296ee0d7725226e49e90f225c9c412`. This
 branch, `docs/relationships-preparation`, is one documentation commit ahead of that baseline.
 
-This document proposes how a future authorized Relationships slice would fit the current
-TypeScript modular monolith. It does not approve product scope, privacy semantics, or
-authorization semantics. The Human Product Owner has not authorized functional implementation.
-Preparation creates none of the source or test paths listed below.
+This document describes the authorized Relationships slice. Issue #7 approved the product
+decisions. The note does not by itself approve a wider scope. The source and test paths
+below now exist for this process-local slice.
 
 ## Working recommendations used here
 
@@ -361,6 +360,6 @@ recommended slice, because the slice does not implement them.
 
 ## Authorization gate
 
-Implementation is not authorized. Do not add the paths above, do not start the task sequence,
-and do not treat this note as Product Owner approval. Preparation stops at this gate until the
-Human Product Owner explicitly authorizes Relationships development on Issue #7.
+Issue #7 authorized this slice on 2026-10-06. The paths above are the implementation.
+Invitation, remote mutation, PostgreSQL, and skill permission remain outside it. This note
+is not Human Product Owner ratification of engineering completion.

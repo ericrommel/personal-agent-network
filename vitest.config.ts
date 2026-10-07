@@ -12,6 +12,12 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        "src/modules/relationships/**": {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         "src/modules/discovery/**": {
           branches: 100,
           functions: 100,

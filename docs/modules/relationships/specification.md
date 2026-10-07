@@ -2,9 +2,9 @@
 
 ## Status and objective
 
-This document prepares the Relationships module for Human Product Owner review on Issue #7.
-It is not implementation authorization. Functional code waits for an explicit Ready for
-Development approval.
+The Human Product Owner approved this behavior for development on Issue #7 on 2026-10-06
+(PO-REL-1 through PO-REL-6). This slice implements that approval. It is not final Human
+Product Owner ratification of the completed module.
 
 The Product Analyst preparation run for Issue #21 timed out before it wrote a file. The
 Engineering Coordinator wrote this specification from Issue #21, the accepted requirements,
@@ -43,15 +43,17 @@ Identity stay distinct under FR-001.
 
 ## Working lifecycle
 
-These semantics are the preparation baseline. Product Owner decisions below can replace
-them. They are not approved behavior.
+These semantics were approved on Issue #7. The decision record below stays as history.
+The implemented record uses `fromAgentId` and `toAgentId` for the ordered pair. This slice
+does not store creation or revocation timestamps. No in-module behavior reads them, and
+Audit owns later event time. That omission is reversible.
 
 ### Record
 
 A relationship is a local record with:
 
 - a relationship id of the form `pan_relationship_<uuidv4>`;
-- `sourceAgentId` and `targetAgentId`, both Agent Identity ids;
+- `fromAgentId` and `toAgentId`, both Agent Identity ids;
 - status `active` or `revoked`;
 - the node-local time of creation and of revocation, when revoked.
 
@@ -148,8 +150,8 @@ implementation approval.
 
 ## Product Owner decisions
 
-Implementation of Relationships stays stopped until the Product Owner authorizes the module.
-The decisions below are the ones that change relationship semantics. Storage drivers,
+The decisions below were approved as recommended, including the PO-REL-6 restart boundary.
+Storage drivers,
 identifier grammar, and in-process port shapes are engineering choices inside the selected
 semantics.
 
