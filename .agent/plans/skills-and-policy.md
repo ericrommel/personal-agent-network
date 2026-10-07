@@ -65,8 +65,8 @@ The decomposition's service sketch calls `readActive(requester, target)`. SP-R6 
 
 - [x] 2026-10-07: Specialist preparation files written.
 - [x] 2026-10-07: Coordinator integrated the decision classification into this plan and the Product Review Queue.
-- [ ] Pure evaluator slice, only if it stays inside the limits above.
-- [ ] Security and QE review of any code that is later added.
+- [x] 2026-10-07: Provisional pure evaluator added in `src/modules/policy/`. It returns only `ALLOW`, `ASK`, or `DENY` from explicit facts. It does not grant permission, choose the directed pair, interpret an interval, or store an approval.
+- [ ] Security and QE review of the evaluator before any Engineering Accepted claim.
 
 ## Discoveries and decision log
 
@@ -74,6 +74,7 @@ The decomposition's service sketch calls `readActive(requester, target)`. SP-R6 
 - 2026-10-07: SP-A1 through SP-A6 chosen by the default decision rule and queued as PRQ-011.
 - 2026-10-07: SP-R6, the directed pair used for authorization, is reserved even though the record direction itself is approved. Queued as PRQ-010.
 - 2026-10-07: The pure evaluator can be built against a boolean port before Relationships source merges. That is a contract dependency.
+- 2026-10-07: The evaluator specialist timed out before writing files. The coordinator implemented the pure function. It encodes SP-A1 through SP-A4 and the deny-by-default mapping. It does not close PRQ-003, PRQ-005, or PRQ-010.
 
 ## Handoff and completion evidence
 
