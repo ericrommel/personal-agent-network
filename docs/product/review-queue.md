@@ -14,8 +14,8 @@ are grouped there. This file keeps one traceable entry per ID.
 Queue class for every item:
 
 - `Resolved`: PRQ-001. PRQ-002's development approval is also resolved.
-- `PO review pending — ratification only`: PRQ-002 completion, PRQ-011.
-  These do not block engineering.
+- `PO review pending — ratification only`: PRQ-002 completion, PRQ-011, and
+  PRQ-014. These do not block engineering.
 - `Reserved Product Decision — blocking`: PRQ-003, PRQ-004, PRQ-005, PRQ-006,
   PRQ-007, PRQ-008, PRQ-009, PRQ-010, PRQ-012, and PRQ-013. Each blocks only
   its own workstream.
@@ -412,6 +412,35 @@ Status values:
   response schema.
 - Affected workstreams: public response DTO and messaging serialization.
 - This item does not block local decisions.
+
+## PRQ-014 — Local skill advertisement
+
+- Module: Skills and Policy, Issue #8.
+- Decision: a trusted local path may advertise or withdraw the pinned
+  availability skill for one eligible agent. The record is not a permission.
+  Restart clears it. A withdrawn row stays withdrawn if the observer throws.
+  `readAdvertised` checks the row again after party lookup.
+- Recommendation chosen: that process-local slice, with no remote parser and no
+  permission fields.
+- Reason: smallest reversible fact that lets policy later tell advertisement
+  from permission. It follows FR-003 and fail closed.
+- Alternatives rejected: treating advertisement as permission; a remote
+  advertise command; durable storage in this slice.
+- Security and privacy impact: absence denies. The record stores an agent id
+  and the pinned skill version only. Security review reported no blocking
+  finding.
+- Reversibility: high. The store is process-local and can be replaced.
+- Implementation status: merged in PR #49 as `5d13fdb`. Not Engineering
+  Accepted for the Skills module.
+- Tests and evidence: `tests/unit/modules/skills/skill-advertisement.test.ts`.
+  CI was green. Coverage stayed 100 percent.
+- Residual risks: restart drops advertisements. Whole-module QE review is still
+  outstanding. This item does not decide who may grant a permission.
+- Deferred limitations: no PostgreSQL, no purpose catalog, and no relationship
+  direction choice.
+- Queue class: `PO review pending — ratification only`.
+- Human PO review status: `PO review pending — ratification only`. This item
+  does not block engineering.
 
 ## How to update this queue
 
