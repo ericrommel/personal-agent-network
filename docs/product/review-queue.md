@@ -8,12 +8,28 @@ GitHub Issue #33 is the standing queue index:
 <https://github.com/ericrommel/personal-agent-network/issues/33>. This file is
 the versioned record. When they differ, update the Issue to match this file.
 
+The consolidated packet is `docs/product/po-decision-packet.md`. Related items
+are grouped there. This file keeps one traceable entry per ID.
+
+Queue class for every item:
+
+- `Resolved`: PRQ-001. PRQ-002's development approval is also resolved.
+- `PO review pending — ratification only`: PRQ-002 completion, PRQ-011.
+  These do not block engineering.
+- `Reserved Product Decision — blocking`: PRQ-003, PRQ-004, PRQ-005, PRQ-006,
+  PRQ-007, PRQ-008, PRQ-009, PRQ-010, PRQ-012, and PRQ-013. Each blocks only
+  its own workstream.
+- D1 in the packet groups PRQ-005 with SP-R7. D4 groups PRQ-006 with PRQ-007.
+  D5 groups PRQ-004 with the query budget. D8 groups PRQ-012 with PRQ-013.
+  The separate IDs remain for traceability.
+
 Status values:
 
-- `Ratified`: the Human Product Owner already made this decision.
-- `PO review pending`: engineering chose or completed the work inside delegated
-  authority. Ratification has not happened. Do not backdate it.
-- `Blocked`: a Reserved Product Decision stops only the listed workstream.
+- `Resolved`: the Human Product Owner already made this decision.
+- `PO review pending — ratification only`: engineering completed the work
+  inside delegated authority. Ratification has not happened. Do not backdate
+  it. It does not block engineering.
+- `Reserved Product Decision — blocking`: stops only the named workstream.
 
 ## PRQ-001 — Delegated autonomous delivery
 
@@ -37,6 +53,7 @@ Status values:
   The reserved list and this queue are the control.
 - Deferred limitations: the engineering GitHub token cannot update the Project
   board. Module Issues remain the delivery record.
+- Queue class: `Resolved`.
 - Human PO review status: `Ratified` on 2026-10-07 by the authorizing prompt.
 
 ## PRQ-002 — Relationships development decisions
@@ -75,10 +92,13 @@ Status values:
 - Deferred limitations: no invitation UX, no remote relationship API, no
   PostgreSQL in this slice, no skill permission, and no in-flight approval
   behavior.
+- Queue class: `PO review pending — ratification only` for completion.
+  Development approval is `Resolved`.
 - Human PO review status: `Ratified` for development on Issue #7. Completion is
-  `PO review pending`. The 2026-10-06 note that asked engineering to stop at
-  final acceptance is superseded for process by PRQ-001. It is not rewritten
-  into an earlier final acceptance.
+  `PO review pending — ratification only`. The 2026-10-06 note that asked
+  engineering to stop at final acceptance is superseded for process by PRQ-001.
+  It is not rewritten into an earlier final acceptance. This item does not
+  block engineering.
 
 ## PRQ-003 — Fixed availability purpose
 
@@ -99,9 +119,9 @@ Status values:
 - Tests and evidence: none yet. This item records the open decision.
 - Residual risks: implementing free-text purpose would widen untrusted input.
 - Deferred limitations: no purpose catalog beyond the single recommended literal.
-- Human PO review status: `Blocked` for caller-supplied purpose only. This is a
-  Reserved Product Decision because it changes consent semantics and the
-  externally visible request contract.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D3.
+- Human PO review status: `Reserved Product Decision — blocking` for
+  caller-supplied purpose only. Exact-match evaluation continues.
 - Affected workstreams: purpose grammar and any Approval binding that stores a
   caller-supplied purpose. Policy preparation, relationship implementation, and
   deny-by-default evaluation over an explicit purpose input continue.
@@ -127,8 +147,10 @@ Status values:
 - Residual risks: a Skills implementation could hard-code interval meaning.
   Preparation must keep interpretation out of the policy kernel.
 - Deferred limitations: no real calendar provider.
-- Human PO review status: `Blocked` for interval interpretation, horizon, and
-  query budget.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D5
+  with the repeated-query budget. Specification row SP-R3 is not a second item.
+- Human PO review status: `Reserved Product Decision — blocking` for interval
+  interpretation, horizon, and query budget.
 - Affected workstreams: availability computation and any public interval
   contract. Boundary analysis, egress allowlisting, and boolean-output checks
   can be prepared.
@@ -158,8 +180,11 @@ Status values:
 - Residual risks: a convenient test fake could become a permit-all composition
   root. Implementation must not ship that root.
 - Deferred limitations: no remote permission protocol.
-- Human PO review status: `Blocked` for permission-grant authority. Reserved
-  because it decides who may authorize.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D1
+  with the choice between inferred `ASK` and `ALLOW` (specification row SP-R7).
+- Human PO review status: `Reserved Product Decision — blocking` for
+  permission-grant authority and any inferred allow/ask matrix. Skill
+  advertisement does not decide this item.
 - Affected workstreams: permission create and revoke commands. Evaluation of an
   injected snapshot, Skills preparation, and Relationships implementation
   continue.
@@ -185,8 +210,10 @@ Status values:
 - Tests and evidence: none yet.
 - Residual risks: analysis could be mistaken for an approved channel.
 - Deferred limitations: no notification platform.
-- Human PO review status: `Blocked` for the approval channel and owner-facing
-  disclosure.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D4
+  with PRQ-007.
+- Human PO review status: `Reserved Product Decision — blocking` for the
+  approval channel and owner-facing disclosure.
 - Affected workstreams: approval UX and release path. Policy `ASK` as a
   decision enum can be represented without storing approvals.
 
@@ -211,8 +238,10 @@ Status values:
 - Tests and evidence: Relationships tests must not claim in-flight behavior.
 - Residual risks: a later module could cache an `active` read across revoke.
 - Deferred limitations: no delivered-result retraction.
-- Human PO review status: `Blocked` for in-flight and undelivered-result
-  behavior.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D4
+  with PRQ-006.
+- Human PO review status: `Reserved Product Decision — blocking` for in-flight
+  and undelivered-result behavior.
 - Affected workstreams: approval release and final disclosure after revoke.
   Relationship revoke-and-read continues.
 
@@ -234,8 +263,9 @@ Status values:
 - Tests and evidence: Discovery's minimized event is not Audit acceptance.
 - Residual risks: process-local test sinks could be described as audit.
 - Deferred limitations: no analytics product.
-- Human PO review status: `Blocked` for inspect, export, retention, and
-  deletion authority.
+- Queue class: `Reserved Product Decision — blocking`. Packet D6.
+- Human PO review status: `Reserved Product Decision — blocking` for inspect,
+  export, retention, and deletion authority.
 - Affected workstreams: audit storage and operator query. Redaction rules can
   be prepared.
 
@@ -259,7 +289,9 @@ Status values:
 - Residual risks: an in-memory two-node rehearsal could be reported as durable
   acceptance evidence.
 - Deferred limitations: no production deployment and no external AI.
-- Human PO review status: `Blocked` for the demonstration surface.
+- Queue class: `Reserved Product Decision — blocking`. Packet D7.
+- Human PO review status: `Reserved Product Decision — blocking` for the
+  demonstration surface. Implementation is also hard-blocked on the trust path.
 - Affected workstreams: demo implementation. Dependency and QE planning
   continue.
 
@@ -286,8 +318,9 @@ Status values:
 - Residual risks: a service could cache `true` or treat the reverse pair as
   consent.
 - Deferred limitations: no cross-node relationship protocol.
-- Human PO review status: `Blocked` for treating one pair as the approved
-  authorization input.
+- Queue class: `Reserved Product Decision — blocking`. Packet D2.
+- Human PO review status: `Reserved Product Decision — blocking` for treating
+  one pair as the approved authorization input.
 - Affected workstreams: the policy service's choice of `readActive` arguments.
   Relationships implementation and a boolean-input evaluator continue.
 
@@ -312,18 +345,73 @@ Status values:
 - Reversibility: high before a public schema exists. Widening later is possible.
   Narrowing later is harder if a wider rule ships first, so the narrow rule is
   the one being prepared.
-- Implementation status: the provisional evaluator is in PR #47. It encodes the
-  deny-by-default mapping. It does not grant permission, choose interval
-  meaning, or choose which requests are seeded `ASK` versus `ALLOW`. Not
-  Engineering Accepted.
-- Tests and evidence: `tests/unit/modules/policy/evaluate-policy.test.ts`. Local
-  verification passed. Independent Security and QE review is still required.
+- Implementation status: merged in PR #47 as `2115f3f`. The evaluator encodes
+  the deny-by-default mapping. It does not grant permission, choose interval
+  meaning, or choose which requests are seeded `ASK` versus `ALLOW`. Skills and
+  Policy is not Engineering Accepted.
+- Tests and evidence: `tests/unit/modules/policy/evaluate-policy.test.ts`. CI on
+  PR #47 was green. Security review of the evaluator reported no blocking
+  finding. Whole-module QE acceptance is still outstanding.
 - Residual risks: a later service could treat these autonomous choices as Human
   Product Owner ratification. They are not.
 - Deferred limitations: purpose source, permission-grant authority, interval
   rules, approval interaction, in-flight revocation, safe metadata, and the
   directed pair remain PRQ-003 through PRQ-010.
-- Human PO review status: `PO review pending`.
+- Queue class: `PO review pending — ratification only`.
+- Human PO review status: `PO review pending — ratification only`. This item
+  does not block engineering.
+
+## PRQ-012 — Message protection stack
+
+- Module: Authenticated Messaging, Issue #9.
+- Decision: which existing transport and authentication stack protects MVP
+  messages?
+- Recommendation: existing TLS, plus an existing HTTP authentication or
+  mutual-TLS binding. No custom cryptography and no new agent protocol.
+- Reason: the binding principles already forbid a proprietary cryptographic
+  protocol. The concrete stack was not chosen.
+- Alternatives: a custom handshake; an unauthenticated local socket; a new
+  agent-to-agent protocol.
+- Security and privacy impact: a custom protocol adds an unreviewed trust
+  boundary. An unauthenticated channel lets a caller spoof a sender.
+- Reversibility: low after clients depend on the wire stack.
+- Implementation status: not started. Threat notes are merged in PR #44.
+- Tests and evidence: none yet.
+- Residual risks: preparation could be mistaken for a selected library.
+- Deferred limitations: no production authentication product in this item.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D8
+  with PRQ-013.
+- Human PO review status: `Reserved Product Decision — blocking` for wire
+  implementation. Messaging threat analysis continues.
+- Affected workstreams: message transport implementation.
+- This item does not block policy, advertisement, or Relationships.
+
+## PRQ-013 — Remote denial and success shape
+
+- Module: Authenticated Messaging and any later disclosure response.
+  Specification row SP-R9.
+- Decision: which fields may appear on a remote success or denial?
+- Recommendation: a later remote success is the boolean alone. A remote denial
+  is one non-revealing outcome. No reason code, policy version, or skill name.
+- Reason: SEC-018 and minimal disclosure. Distinct denials let a caller probe
+  relationship, permission, and context.
+- Alternatives: public reason codes; correlation ids and expiry on the denial;
+  a human-readable explanation.
+- Security and privacy impact: extra public fields are a second disclosure
+  channel.
+- Reversibility: low after clients branch on those fields.
+- Implementation status: not started. The local evaluator returns only
+  `ALLOW`, `ASK`, or `DENY` and is not a remote response.
+- Tests and evidence: evaluator tests show no metadata beside the decision.
+- Residual risks: a later handler could forward the local decision unchanged
+  and reveal that an `ASK` rule exists.
+- Deferred limitations: no remote response schema in the current code.
+- Queue class: `Reserved Product Decision — blocking`. Grouped as packet D8
+  with PRQ-012.
+- Human PO review status: `Reserved Product Decision — blocking` for the remote
+  response schema.
+- Affected workstreams: public response DTO and messaging serialization.
+- This item does not block local decisions.
 
 ## How to update this queue
 
