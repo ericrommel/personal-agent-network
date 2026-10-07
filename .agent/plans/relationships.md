@@ -1,8 +1,8 @@
 # Relationships
 
-Status: In Development
+Status: Complete
 Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Security & Privacy Engineer, Backend Engineer, Quality Engineer
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 Tracking: GitHub Issue #7; subtasks #20, #21, #22, #23, #24, #25; roadmap Issue #15
 
 ## Objective
@@ -147,6 +147,8 @@ security review after code exists.
 ## Handoff and completion evidence
 
 Preparation evidence is the module documents under `docs/modules/relationships/`, this plan,
-and the Issue #7 readiness comment. Development was approved on Issue #7. This plan does not record Engineering Accepted.
-A throwing create observer clears that directed pair, so a failed create cannot leave an
-active row. Timestamps are not stored in this slice.
+and the Issue #7 readiness comment. Development was approved on Issue #7. Engineering Accepted and Done were recorded on
+2026-10-07 for this approved slice only, after PR #46 merged. Human Product Owner
+ratification of that completion is `PO review pending` in PRQ-002. A throwing create
+observer clears that directed pair. Timestamps are not stored in this slice. `readActive`
+rechecks the current row after party lookup. Restart still drops state.
