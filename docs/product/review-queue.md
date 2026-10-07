@@ -259,6 +259,67 @@ Status values:
 - Affected workstreams: demo implementation. Dependency and QE planning
   continue.
 
+## PRQ-010 — Which directed relationship policy reads
+
+- Module: Skills and Policy, Issue #8. Uses the directed record approved in
+  PRQ-002.
+- Decision: which ordered pair must be active before a local policy decision
+  can be `ALLOW` or `ASK`?
+- Recommendation: on the receiving node, require a fresh `true` for requester
+  to local target. The reverse pair is neither necessary nor sufficient.
+- Reason: matches directed records and receiver-local authority. Inferring the
+  reverse would reopen PO-REL-2.
+- Alternatives: reverse only; either direction; both directions; an undirected
+  edge.
+- Security and privacy impact: the wrong pair denies honest requests or treats
+  a different owner action as consent to be queried.
+- Reversibility: moderate. It is local. Seeds and tests will encode it. No wire
+  field has to publish it.
+- Implementation status: blocked as approved product behavior. A pure evaluator
+  may take a boolean input without choosing the pair. Naming the candidate pair
+  in preparation is allowed. Hard-coding it as an accepted product rule is not.
+- Tests and evidence: Skills preparation decision SP-R6.
+- Residual risks: a service could cache `true` or treat the reverse pair as
+  consent.
+- Deferred limitations: no cross-node relationship protocol.
+- Human PO review status: `Blocked` for treating one pair as the approved
+  authorization input.
+- Affected workstreams: the policy service's choice of `readActive` arguments.
+  Relationships implementation and a boolean-input evaluator continue.
+
+## PRQ-011 — Skills deny-by-default details
+
+- Module: Skills and Policy, Issue #8.
+- Decision: how the evaluator treats an unadvertised skill, ambiguous matches,
+  context and approval side effects, public denial detail, permission record
+  fields, and whether the local skill version is a public protocol.
+- Recommendation chosen: deny when the skill is not advertised; deny on zero or
+  conflicting matches; do not compute availability or store an approval in the
+  kernel; do not publish a denial reason; store only agent ids, skill version,
+  purpose, scope, effect, and policy version; keep the version token local.
+- Reason: these are the privacy-preserving, least authoritative, smallest, and
+  most reversible readings of FR-003, SEC-005, and SEC-018. They are SP-A1
+  through SP-A6 in the Skills specification.
+- Alternatives rejected: permission without advertisement; first-match wins;
+  ambiguity becomes `ASK`; the kernel reads context; distinct public denial
+  errors; storing email on the permission; publishing a skill URL now.
+- Security and privacy impact: the rejected alternatives would widen authority
+  or disclosure. The chosen options fail closed.
+- Reversibility: high before a public schema exists. Widening later is possible.
+  Narrowing later is harder if a wider rule ships first, so the narrow rule is
+  the one being prepared.
+- Implementation status: recorded for preparation. A pure evaluator may encode
+  the deny-by-default mapping. It must not grant permission, choose interval
+  meaning, or choose which demo requests are `ASK` versus `ALLOW`.
+- Tests and evidence: specification and test plan on the Skills preparation
+  branch. No implementation evidence yet.
+- Residual risks: a later service could treat these autonomous choices as Human
+  Product Owner ratification. They are not.
+- Deferred limitations: purpose source, permission-grant authority, interval
+  rules, approval interaction, in-flight revocation, safe metadata, and the
+  directed pair remain PRQ-003 through PRQ-010.
+- Human PO review status: `PO review pending`.
+
 ## How to update this queue
 
 Add a new `PRQ-` item. Do not renumber old items. When the Human Product Owner
