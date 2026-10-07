@@ -1,8 +1,8 @@
 # MVP Requirements
 
-These requirements are normative. `MUST` indicates blocking MVP behavior. Product decisions marked `TBD-PO` remain unresolved and block the affected module.
+These requirements are normative. `MUST` indicates blocking MVP behavior. A decision marked `TBD-PO` remains unresolved and blocks only the behavior that depends on it. Independent work continues.
 
-Relationships preparation is tracked on Issue #7. The proposed lifecycle and the six open decisions are in `docs/modules/relationships/specification.md`. That proposal is not approved. It does not change the normative sentences below.
+The Human Product Owner approved Relationships development on Issue #7 (PO-REL-1 through PO-REL-6). The approved semantics are the directed, pre-seeded, node-local lifecycle in `docs/modules/relationships/specification.md`. That approval does not complete invocation denial or the in-flight portion of revocation. It does not change the normative sentences below.
 
 ## Functional
 

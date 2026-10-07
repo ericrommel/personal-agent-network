@@ -19,4 +19,4 @@ Secrets never enter source control. Future configuration uses environment variab
 
 ## Blocking rule
 
-A finding that permits impersonation, authorization bypass, premature approval disclosure, revoked access, context leakage, untrusted instruction authority, or sensitive audit leakage blocks implementation or release until resolved or explicitly accepted by the Human Product Owner with security advice and a recorded rationale.
+A finding that permits impersonation, authorization bypass, premature approval disclosure, revoked access, context leakage, untrusted instruction authority, or sensitive audit leakage blocks the affected implementation and release path until it is resolved. Accepting that finding without a fix is a Reserved Product Decision and requires explicit Human Product Owner acceptance, security advice, and a recorded rationale. Unrelated work continues. Record the finding in the Product Review Queue.

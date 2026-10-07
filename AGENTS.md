@@ -4,9 +4,14 @@
 
 This document defines how AI engineering agents collaborate in the Personal Agent Network repository.
 
-The root Codex agent acts as the **Engineering Coordinator / Tech Lead**.
+The root agent acts as the **Engineering Coordinator / Tech Lead**.
 
 Subagents are specialists, not independent project owners.
+
+The Human Product Owner authorized delegated autonomous delivery on 2026-10-07.
+Continue unless the work is explicitly unsafe or a Reserved Product Decision.
+The process and triggers are in `docs/engineering/development-process.md`.
+The asynchronous review record is `docs/product/review-queue.md`.
 
 ---
 
@@ -14,8 +19,8 @@ Subagents are specialists, not independent project owners.
 
 1. Never develop directly on `main`.
 2. Work through focused branches and reviewable Pull Requests.
-3. Do not expand product scope without Product Owner approval.
-4. Do not implement future modules prematurely.
+3. Do not cross a Reserved Product Decision or change a binding PAN principle without the Human Product Owner. Reversible product-detail decisions inside delegated authority do not wait.
+4. Do not implement a slice that depends on an unresolved Reserved Product Decision. Independent preparation and implementation may proceed.
 5. Security and privacy concerns are blocking when they affect trust boundaries.
 6. Developers own automated tests for their implementation.
 7. QE owns quality strategy and independent verification, not developer test implementation.
@@ -37,9 +42,11 @@ Responsibilities:
 - delegate bounded investigations;
 - integrate findings;
 - maintain implementation plans;
-- enforce development gates;
-- prevent scope creep;
-- present unresolved product decisions to the Product Owner.
+- keep the scheduling loop in `docs/engineering/development-process.md` moving;
+- prevent scope from crossing Reserved Product Decisions;
+- record autonomous decisions in the module decision log and Product Review Queue;
+- merge engineering-complete work without waiting for a Human Product Owner merge;
+- present Reserved Product Decisions in the Product Review Queue without stopping unrelated work.
 
 The coordinator must not create subagents merely to simulate activity.
 
@@ -56,9 +63,9 @@ Responsibilities:
 - identify scope changes;
 - protect MVP boundaries.
 
-The Product Analyst may propose product decisions but does not approve them.
+The Product Analyst may propose product decisions but does not approve Reserved Product Decisions.
 
-Final product scope belongs to the Product Owner.
+The Human Product Owner remains the authority for reserved scope. Engineering may record reversible product-detail decisions under the default decision rule. Those decisions are not Human Product Owner approval.
 
 ---
 
@@ -121,7 +128,7 @@ Responsibilities:
 - auditability;
 - revocation behavior.
 
-Security findings affecting trust boundaries are blocking until resolved or explicitly accepted.
+Security findings affecting trust boundaries block the affected work until they are resolved. Explicitly accepting an unresolved trust-boundary finding is a Reserved Product Decision. Unrelated work continues. A critical finding also blocks the affected merge or deployment path.
 
 ---
 
@@ -253,26 +260,19 @@ The coordinator integrates findings.
 
 ---
 
-# Product Owner Gates
+# Product Owner review
 
-Explicit Product Owner review is required when a change materially affects:
+Human Product Owner checkpoints are asynchronous. They are not default stop-the-line gates.
 
-- product scope;
-- user-visible behavior;
-- privacy semantics;
-- authorization semantics;
-- MVP boundaries;
-- relationship behavior;
-- data disclosure;
-- autonomous agent behavior.
+Stop only the affected workstream for a Reserved Product Decision. The reserved list, the default decision rule, and the continue-unless-unsafe rule are normative in `docs/engineering/development-process.md`.
 
-Engineering decisions that remain within approved behavior do not require unnecessary Product Owner interruption.
+Engineering must not grant, infer, or backdate Human Product Owner approval. Significant autonomous decisions are recorded in `docs/product/review-queue.md` as `PO review pending` until the Human Product Owner ratifies them.
 
 ## Merge Authority
 
-A responsible engineering agent may merge a Pull Request only after all required CI and review gates pass, all blocking findings and conversations are resolved, and any applicable explicit Human Product Owner approval is recorded in the Pull Request. Product Owner authority remains human-only; an agent may neither grant nor infer that approval.
+A responsible engineering agent may merge a Pull Request when required CI passes, required reviews pass, no unresolved blocking review thread remains, and no Reserved Product Decision is bypassed. Human Product Owner merge action is not required. The agent still may not treat that merge as Human Product Owner ratification.
 
-Before merging, the agent must leave a persistent Pull Request comment beginning with `Role: <project role>` that records the merge decision and supporting gate evidence.
+Before merging, the agent must leave a persistent Pull Request comment beginning with `Role: <project role>` that records the merge decision and supporting gate evidence. Use the repository squash-merge method.
 
 ---
 
@@ -286,31 +286,24 @@ Use these delivery states:
 
 1. Backlog
 2. In Preparation
-3. Ready for PO
-4. Ready for Development
-5. In Development
-6. Code Review
-7. Ready for Testing
-8. Testing
-9. Ready for PO Acceptance
-10. Done
+3. Ready for Review
+4. In Development
+5. Code Review
+6. Testing
+7. Engineering Accepted
+8. Done
 
 The Engineering Coordinator must keep the module Issue, linked Pull Requests, ExecPlan, and actual delivery state synchronized.
 
-Preparation work may begin for the next planned module after the previous module is accepted, but preparation does not authorize functional implementation.
+Preparation of a later module may run before the previous module is Done. Only a hard dependency blocks that work. Preparation does not cross a Reserved Product Decision.
 
-When preparation reaches a Product Owner gate:
+When preparation reaches a former Product Owner gate, post the evidence, record autonomous decisions, and mark `Ready for Review`. Continue implementation when the remaining work is inside delegated authority. If a Reserved Product Decision is open, block only the affected workstream and queue the decision.
 
-- post the readiness evidence package to the module Issue;
-- mark the module state `Ready for PO`;
-- stop functional implementation work;
-- wait for explicit Human Product Owner authorization before moving to `Ready for Development`.
-
-When implementation reaches final acceptance, use the same pattern: record evidence, mark `Ready for PO Acceptance`, and stop until explicit Human Product Owner acceptance.
+When implementation meets the Definition of Done, mark `Engineering Accepted` and then `Done`, add the Product Review Queue item as `PO review pending`, and activate the next useful work. Do not wait for synchronous Human Product Owner acceptance.
 
 Pull Requests are implementation/review artifacts for an Issue; they do not replace module tracking. Maintenance and dependency Pull Requests do not advance functional module state.
 
-The existence of a module Issue, roadmap entry, specification, or future-facing architecture does not authorize implementation.
+The existence of a module Issue, roadmap entry, specification, or future-facing architecture does not by itself authorize crossing a Reserved Product Decision.
 
 ---
 
@@ -325,7 +318,8 @@ A substantial implementation module should not begin until it has:
 - identified risks;
 - understood architecture impact;
 - test strategy;
-- security review when applicable.
+- security review when applicable;
+- any Reserved Product Decision identified and isolated from the slice being started.
 
 ---
 
@@ -341,7 +335,10 @@ Implementation is not complete until:
 - documentation is updated;
 - architecture decisions are recorded when necessary;
 - QE has independently reviewed applicable acceptance criteria;
-- blocking findings are resolved.
+- blocking findings are resolved;
+- no Reserved Product Decision is bypassed;
+- deferred limitations are explicit;
+- the Product Review Queue records completion as `PO review pending` unless the Human Product Owner has already ratified it.
 
 ---
 

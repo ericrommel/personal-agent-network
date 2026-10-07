@@ -1,8 +1,8 @@
 # MVP Acceptance Criteria and Traceability
 
-These criteria describe observable behavior. Automated tests should include the `AC-*` identifier in their name. `TBD-PO` criteria cannot be finalized until the linked Product Owner decision is resolved.
+These criteria describe observable behavior. Automated tests should include the `AC-*` identifier in their name. `TBD-PO` criteria cannot be finalized until the linked Product Owner decision is resolved. An unresolved note blocks only that behavior.
 
-Relationships preparation does not complete `AC-DOM-001` or `AC-REV-001`. The module proposal can cover a distinct local record and the next local read after revoke. Invocation denial, pending-approval invalidation, and the in-flight boundary remain later work. The in-flight note on `AC-REV-001` is still unresolved.
+Relationships development is authorized on Issue #7. This module can cover a distinct local record and the next local read after revoke. It does not complete `AC-DOM-001` invocation denial, pending-approval invalidation, or the in-flight boundary. The in-flight note on `AC-REV-001` is still unresolved and is queued as a Reserved Product Decision.
 
 ## Criteria
 

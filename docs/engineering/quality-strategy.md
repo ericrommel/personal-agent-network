@@ -16,7 +16,7 @@ P0 failures block merge and release: authorization bypass, protected result befo
 
 ## Coverage and evidence
 
-Every MVP requirement maps to stable acceptance criteria and every security/privacy behavior has negative coverage. Before each security-critical policy, approval, revocation, disclosure, or validation module reaches Ready for Development, its test configuration must add per-file thresholds requiring complete decision/branch coverage. Other code starts at 80% lines/statements/functions and 75% branches, with documented exclusions only for generated/config/type-only code. Coverage is evidence, not a substitute for behavior tests.
+Every MVP requirement maps to stable acceptance criteria and every security/privacy behavior has negative coverage. Before implementation of a security-critical policy, approval, revocation, disclosure, or validation module, its test configuration must add thresholds requiring complete decision and branch coverage for that module. Other code starts at 80% lines/statements/functions and 75% branches, with documented exclusions only for generated, config, or type-only code. Coverage is evidence, not a substitute for behavior tests. QE reviews that evidence and does not become the default author of the implementation tests.
 
 Test names include `AC-*` identifiers. Pull Requests list affected requirements/criteria and commands/results. CI publishes test/coverage evidence when reporting is introduced; no raw private test data enters artifacts.
 

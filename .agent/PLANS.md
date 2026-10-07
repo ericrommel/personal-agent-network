@@ -9,7 +9,7 @@ Plans do not authorize product scope. Create them after requirements are identif
 ```markdown
 # <Module or change>
 
-Status: Draft | Ready for PO | Approved for Development | In Progress | Verification | Ready for PO Acceptance | Complete
+Status: Draft | In Preparation | Ready for Review | In Development | Code Review | Testing | Engineering Accepted | Complete
 Owner roles:
 Last updated:
 
@@ -30,4 +30,4 @@ Last updated:
 ## Handoff and completion evidence
 ```
 
-Record exact commands and observed results. Update progress, surprises, decisions, and deviations while work proceeds. Never mark a PO-owned state without explicit Human Product Owner approval.
+Record exact commands and observed results. Update progress, surprises, decisions, and deviations while work proceeds. Do not record Human Product Owner ratification that has not occurred. `Engineering Accepted` and `Complete` may be recorded under delegated authority. Reserved Product Decisions stay open until the Human Product Owner decides them.
