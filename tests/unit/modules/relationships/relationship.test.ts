@@ -22,7 +22,6 @@ import { failure } from "../../../../src/shared/domain/result.js";
 const FROM = "pan_agent_11111111-1111-4111-8111-111111111111";
 const TO = "pan_agent_22222222-2222-4222-a222-222222222222";
 const OWNER = "pan_human_33333333-3333-4333-8333-333333333333";
-const DISCOVERY_REFERENCE = "pan_agent_ref_44444444-4444-4444-8444-444444444444";
 
 const unwrap = <T>(result: Readonly<{ ok: true; value: T } | { ok: false }>): T => {
   if (!result.ok) {
@@ -85,6 +84,9 @@ const harness = (
 };
 
 const code = (name: string) => failure({ code: name });
+const RECORD_KEYS = ["kind", "id", "fromAgentId", "toAgentId", "status"];
+const EVENT_KEYS = ["contract", "correlationId", "sourceKey", "command", "outcome", "control"];
+const PAIR_KEY = `${FROM}>${TO}`;
 
 describe("relationship service", () => {
   it("AC-DOM-001 keeps relationship state free of skill, permission, and discovery fields", async () => {
@@ -106,20 +108,73 @@ describe("relationship service", () => {
     expect(created.value).not.toHaveProperty("permission");
     expect(created.value).not.toHaveProperty("email");
     expect(await service.readActive(FROM, TO)).toBe(true);
-    expect(recorded[0]).not.toHaveProperty("fromAgentId");
+    expect(await service.readActive(TO, FROM)).toBe(false);
+    expect(Object.keys(recorded[0] ?? {})).toEqual(EVENT_KEYS);
     expect(JSON.stringify(recorded)).not.toContain(FROM);
+    expect(JSON.stringify(recorded)).not.toContain(TO);
+    expect(JSON.stringify(recorded)).not.toContain(created.value.id);
     expect(JSON.stringify(created)).not.toContain("availability");
   });
 
+  it("keeps a one-sided pair directed and stores no reverse row", async () => {
+    const { service, store } = harness();
+    unwrap(await service.create(source(), createCommand()));
+
+    expect(await service.readActive(FROM, TO)).toBe(true);
+    expect(await service.readActive(TO, FROM)).toBe(false);
+    expect(store.findByDirectedPair(TO, FROM)).toBeNull();
+    expect(isRelationship(store.findByDirectedPair(FROM, TO))).toBe(true);
+  });
+
+  it("rechecks the row after party lookup so a revoke during the await is not active", async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let blockNextTargetLookup = false;
+    let waiting = false;
+    const parties = [agent(FROM), agent(TO)];
+    const sink: RelationshipEventSink = { record() {} };
+    const store = new InMemoryRelationshipStore(sink);
+    const service = new RelationshipService({
+      events: sink,
+      store,
+      parties: {
+        async findAgent(id: unknown) {
+          if (blockNextTargetLookup && id === TO) {
+            blockNextTargetLookup = false;
+            waiting = true;
+            await gate;
+          }
+          return parties.find((party) => party.id === id) ?? null;
+        },
+      },
+    });
+    const created = unwrap(await service.create(source(), createCommand()));
+    blockNextTargetLookup = true;
+    const pending = service.readActive(FROM, TO);
+    while (!waiting) {
+      await Promise.resolve();
+    }
+    expect((await service.revoke(source(), revokeCommand(created.id))).ok).toBe(true);
+    unwrap(await service.create(source(), createCommand(FROM, TO, "corr-after")));
+    if (release === undefined) {
+      throw new Error("party lookup gate was not installed");
+    }
+    release();
+    expect(await pending).toBe(false);
+    expect(await service.readActive(FROM, TO)).toBe(true);
+  });
+
   it("AC-REV-001 makes the next local read inactive without revoking the opposite direction", async () => {
-    const { service } = harness();
+    const { service, store } = harness();
     const forward = unwrap(await service.create(source(), createCommand()));
     const reverse = unwrap(await service.create(source(), createCommand(TO, FROM, "corr-reverse")));
 
-    expect(unwrap(await service.revoke(source(), revokeCommand(forward.id)))).toMatchObject({
-      id: forward.id,
-      status: "revoked",
-    });
+    const revoked = unwrap(await service.revoke(source(), revokeCommand(forward.id)));
+    expect(Object.keys(revoked)).toEqual(RECORD_KEYS);
+    expect(revoked).toMatchObject({ id: forward.id, status: "revoked" });
+    expect(Object.keys(store.findByDirectedPair(FROM, TO) as object)).toEqual(RECORD_KEYS);
     expect(await service.readActive(FROM, TO)).toBe(false);
     expect(await service.readActive(TO, FROM)).toBe(true);
     expect(reverse.status).toBe("active");
@@ -157,8 +212,11 @@ describe("relationship service", () => {
   });
 
   it("fails closed for invalid commands, self-pairs, and discovery references", async () => {
-    const { service, recorded } = harness();
+    const { service, store, recorded } = harness();
     const discovery = `pan_agent_ref_${FROM.slice("pan_agent_".length)}`;
+    const human = `pan_human_${FROM.slice("pan_agent_".length)}`;
+    const versionOneId = "pan_relationship_33333333-3333-1333-8333-333333333333";
+    const badVariantId = "pan_relationship_33333333-3333-4333-c333-333333333333";
 
     expect(await service.create(source(), createCommand(FROM, FROM))).toEqual(
       code("RELATIONSHIP_COMMAND_INVALID"),
@@ -166,7 +224,25 @@ describe("relationship service", () => {
     expect(await service.create(source(), createCommand(discovery, TO))).toEqual(
       code("RELATIONSHIP_COMMAND_INVALID"),
     );
+    expect(await service.create(source(), createCommand(human, TO))).toEqual(
+      code("RELATIONSHIP_COMMAND_INVALID"),
+    );
     expect(await service.create(source(), createCommand(FROM.toUpperCase(), TO))).toEqual(
+      code("RELATIONSHIP_COMMAND_INVALID"),
+    );
+    expect(
+      await service.create(source(), {
+        ...createCommand(),
+        contract: "pan.relationship-command/v0",
+      }),
+    ).toEqual(code("RELATIONSHIP_COMMAND_INVALID"));
+    expect(await service.create(source(), { ...createCommand(), action: "invite" })).toEqual(
+      code("RELATIONSHIP_COMMAND_INVALID"),
+    );
+    expect(await service.revoke(source(), revokeCommand(versionOneId))).toEqual(
+      code("RELATIONSHIP_COMMAND_INVALID"),
+    );
+    expect(await service.revoke(source(), revokeCommand(badVariantId))).toEqual(
       code("RELATIONSHIP_COMMAND_INVALID"),
     );
     expect(await service.create(source(), { ...createCommand(), extra: true })).toEqual(
@@ -180,8 +256,11 @@ describe("relationship service", () => {
       code("RELATIONSHIP_COMMAND_INVALID"),
     );
     expect(recorded.every((event) => event.outcome === "rejected")).toBe(true);
-    expect(DISCOVERY_REFERENCE.startsWith("pan_agent_ref_")).toBe(true);
+    expect(recorded.every((event) => Object.keys(event).join() === EVENT_KEYS.join())).toBe(true);
+    expect(store.findByDirectedPair(FROM, TO)).toBeNull();
+    expect(store.findByDirectedPair(FROM, FROM)).toBeNull();
     expect(await service.readActive(FROM, TO)).toBe(false);
+    expect(discovery.startsWith("pan_agent_ref_")).toBe(true);
   });
 
   it("does not insert when a party is missing, disabled, or the lookup throws", async () => {
@@ -202,6 +281,9 @@ describe("relationship service", () => {
     expect(await thrown.service.create(source(), createCommand())).toEqual(
       code("RELATIONSHIP_DEPENDENCY_FAILED"),
     );
+    expect(missing.store.findByDirectedPair(FROM, TO)).toBeNull();
+    expect(disabled.store.findByDirectedPair(FROM, TO)).toBeNull();
+    expect(thrown.store.findByDirectedPair(FROM, TO)).toBeNull();
     expect(await missing.service.readActive(FROM, TO)).toBe(false);
     expect(thrown.recorded.some((event) => event.control === "dependency")).toBe(true);
   });
@@ -260,11 +342,24 @@ describe("relationship service", () => {
     expect(await service.readActive(TO, FROM)).toBe(false);
     expect(await service.readActive(FROM, TO)).toBe(false);
 
-    const malformed = harness(undefined, {
-      seed: [["pan_agent_not-a-pair", { kind: "relationship", status: "active" }]],
+    const statusOnly = harness(undefined, {
+      seed: [[PAIR_KEY, { status: "active" }]],
     });
-    expect(malformed.store.findByDirectedPair(FROM, TO)).toBeNull();
-    expect(await malformed.service.readActive(FROM, TO)).toBe(false);
+    const extraField = harness(undefined, {
+      seed: [[PAIR_KEY, { kind: "relationship", status: "active", skill: "availability" }]],
+    });
+    expect(statusOnly.store.findByDirectedPair(FROM, TO)).toBeNull();
+    expect(extraField.store.findByDirectedPair(FROM, TO)).toBeNull();
+    expect(await statusOnly.service.readActive(FROM, TO)).toBe(false);
+    expect(await extraField.service.readActive(FROM, TO)).toBe(false);
+    const disguised = harness(undefined, {
+      store: {
+        insertActive: () => null,
+        revokeMatching: () => null,
+        findByDirectedPair: () => ({ status: "active", skill: "availability" }),
+      },
+    });
+    expect(await disguised.service.readActive(FROM, TO)).toBe(false);
 
     const throwingStore = harness(undefined, {
       store: {

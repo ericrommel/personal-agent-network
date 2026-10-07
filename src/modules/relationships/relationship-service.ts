@@ -94,9 +94,19 @@ export class RelationshipService {
       }
       const fromParty = await this.#parties.findAgent(found.fromAgentId);
       const toParty = await this.#parties.findAgent(found.toAgentId);
+      if (
+        !matchesEligibleAgent(fromParty, found.fromAgentId) ||
+        !matchesEligibleAgent(toParty, found.toAgentId)
+      ) {
+        return false;
+      }
+      const current = this.#store.findByDirectedPair(from, to);
       return (
-        matchesEligibleAgent(fromParty, found.fromAgentId) &&
-        matchesEligibleAgent(toParty, found.toAgentId)
+        isRelationship(current) &&
+        current.status === "active" &&
+        current.id === found.id &&
+        current.fromAgentId === from &&
+        current.toAgentId === to
       );
     } catch {
       return false;
