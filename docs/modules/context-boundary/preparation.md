@@ -1,8 +1,9 @@
 # Context Boundary and Availability Preparation
 
-Status: preparation note only. Issue #10 stays **Backlog** until the Engineering Coordinator
-records a different state. This file is not Product Owner approval, not Definition of Ready, and
-not implementation authorization. No interval rule below is decided.
+Status: preparation note only. `docs/modules/preparation-index.md` lists this module as
+In Preparation. This file does not change the GitHub issue and does not treat that index line
+as Product Owner approval, Definition of Ready, or implementation authorization. No interval
+rule below is decided.
 
 Owner roles: Product Analyst, Software Architect, Quality Engineer  
 Issue: #10, Context Boundary and Availability  
@@ -51,39 +52,53 @@ below are cleared:
   availability request.
 - Deterministic derivation of one boolean from simulated busy intervals.
 - An egress allowlist of `{ available: boolean }` plus safe protocol metadata.
-- A final current-policy and revocation check immediately before the read and again
+- A final current-authority and revocation check immediately before the read and again
   immediately before disclosure.
-- Fail-closed behavior when authority, validation, the store, or the reserved budget check
-  is missing, stale, or indeterminate.
-- Minimized local evidence that contains no raw context and no derived boolean.
+- Fail-closed behavior when authority, validation, the store, event acknowledgement, or the
+  reserved budget check is missing, stale, or indeterminate.
+- Minimized local evidence that contains no raw context, no query text, and no derived
+  boolean.
 
 The port sequence, once implementation is allowed, is:
 
 ```text
-trusted in-process orchestration
-  -> re-check current policy and revocation for the exact binding
+DENY, pending ASK, rejection, expiry, or remote ingress
+  -> do not enter
+
+ALLOW path
+  -> fresh ALLOW for the exact binding
+
+ASK path
+  -> only the approval spend, after that module's pre-read check, bound input only
+
+both authorized paths
   -> reserved budget check
   -> reserved interval validation
   -> read simulated busy intervals only
   -> pure derivation to one boolean
-  -> fresh allowlisted object
-  -> re-check again immediately before disclosure
+  -> re-check current authority
+  -> acknowledge a minimized event that has no boolean and no query text
+  -> return the boolean only after that acknowledgement is an exact success
 ```
 
-There is no HTTP route, status code, or wire schema in this note. The transport ADR is not
-part of this module.
+The boolean is not stored on the approval, in an outbox, or in the context store. There is
+no HTTP route, status code, or messaging schema in this note.
 
 ### What the port may accept
 
-The caller is trusted orchestration inside the receiving node. The port requires a current
-decision for the exact binding: requester, target, versioned `availability` skill, purpose,
-interval, disclosure scope, policy version, request id, and unexpired decision. Disclosure
-scope is boolean availability only. Remote text, a model string, a relationship row, a skill
-advertisement, a discovery reference, or an approval record that has not been re-checked as
-current policy is not that decision.
+The caller is in-process code on the receiving node, never a messaging or external-AI
+adapter. On the `ALLOW` path the caller has a fresh `ALLOW` for one exact binding. On the
+`ASK` path the only caller is the approval spend, after its own pre-read check, and only
+with the stored binding. Creating a pending approval does not call this port.
 
-This shape is a dependency sketch. It is not a stable policy contract. See the contract
-dependency below.
+The binding is requester, target, versioned `availability` skill, purpose, interval,
+disclosure scope, policy version, request id, and an unexpired decision. Disclosure scope
+is boolean availability only. Remote text, a model string, a relationship row, a skill
+advertisement, a discovery reference, or an approval record that has not just been
+re-checked is not that decision.
+
+This shape is a dependency sketch. The `ALLOW` contract and the approval-release contract
+are not stable. See the contract dependency below.
 
 ### What stays inside the boundary
 
@@ -112,31 +127,36 @@ The store is not a general memory, profile, file, or tool store.
 
 | Class | Meaning |
 |---|---|
-| Hard | An accepted upstream module or provider that must already be stable. Skipping it, or replacing it with a private stand-in, would make the context-boundary claim false. |
+| Hard | An upstream module or provider that is already accepted and stable, where a private stand-in would make this module's claim false. Accepted requirement text is a constraint, not an upstream dependency. |
 | Contract | An interface this module must consume. Instability blocks the consuming behavior. The owning module does not have to be Done for this note. |
 | Implementation | Work inside this module after a later Ready for Development approval. |
-| Integration | Later wiring to a neighbor that owns its own contract. Not a prerequisite for this note. |
-| None | Not a prerequisite. Do not wait for it. Do not treat it as authority or as a provider. |
+| Integration | A later seam with a neighbor. It can be named. It cannot be wired from this note. |
+| None | Not a prerequisite. Do not wait for it, and do not treat it as authority or as a provider. |
 
 | Dependency | Class | Effect on this note and on later work |
 |---|---|---|
-| Policy `ALLOW`, including the fresh revocation read before access and before disclosure | Contract | Required before any request path may query or disclose context. The decision type, binding, and version are not stable. A local fake must not be wired in as if it were that contract. This is not a hard dependency of the preparation note. |
-| Relationships Done | None | Not required before this note. The context port must not read relationship rows. Policy consumes that state under `FR-005`. |
-| Skills Done | None | Not required before this note. Advertisement is not authority. A later skill contract must not widen egress beyond the boolean allowlist. |
+| Policy `ALLOW`, and the fresh revocation read on that path | Contract | Not stable enough to implement context access. No accepted decision type or versioned policy API exists yet. A local fake must not be wired in as if it were that contract. Preparation does not need the contract to exist. |
+| Approval spend as the only `ASK` caller | Integration | Issue #11 may call this port after its pre-read check, once per request id, with the bound input only. It must not call on create-pending, reject, expiry, or from remote ingress. That lifecycle is not stable, and this note does not wait for it. |
+| Relationships Done | None | Not required before this note. The context port must not read relationship rows. Policy and approval consume that state under `FR-005`. |
+| Skills Done | None | Not required before this note. Advertisement is not authority. A later skill contract must not widen egress past the boolean. |
 | Real calendar provider | None | Out of scope. Absence is the requirement (`FR-010`), not a missing integration. |
 | Identity and Discovery | None | No email lookup and no opaque reference as authority. |
 | External AI | None | Stays off the path (`PRV-007`, `SEC-013`). Not a derivation engine. |
-| PostgreSQL | None | Simulated context does not introduce persistent state here. ADR-0004 applies only if a later approved design persists state. It still would not add a calendar provider. |
-| In-process simulated store, pure derivation, allowlist constructor, trusted clock, process-local budget counter | Implementation | Specified only at the rule level. Coding any of them is functional work and stays blocked. Parts that encode reserved rules stay blocked even after a general module approval, unless that approval includes those rules. |
-| Approval release, messaging and replay, minimized audit sink, two-node demonstration | Integration | This note does not wait for them. The port is not invoked from their adapters. Duplicate suppression (`SEC-007`) stays with messaging's idempotency contract rather than a second replay store in this module. |
+| PostgreSQL | None | Simulated fixtures are not persistent product state. ADR-0004 applies when some later authorized module persists revocation, replay, approval, policy, or audit. This note does not add a driver. In-memory fixtures are not acceptance evidence for those other concerns. |
+| In-process simulated store, pure derivation, allowlist constructor, trusted clock, process-local budget counter | Implementation | Specified only at the rule level. Coding any of them stays blocked. Parts that encode reserved rules stay blocked unless a later approval includes those rules. |
+| Messaging ingress and replay | Integration | Ingress must not reach the store. Duplicate suppression of the request id stays with messaging. This module does not build a second replay store and does not keep the boolean for replay. |
+| Minimized audit acknowledgement | Integration | Successful return of the boolean waits on an exact acknowledgement of a minimized event. Issue #12 does not have to be Done. Retention, export, and operator query stay there. A process-local ack is not durable audit acceptance. |
+| Two-node demonstration | Integration | Issue #13 treats this module as hard for that suite. That is downstream. It is not an upstream hard dependency of this note, and this note does not implement the suite. |
 | Reserved interval, timezone/DST, horizon/duration, and query budget | Not a module dependency | Reserved Product Decisions. They block derivation and budget enforcement. They do not block this note. |
 
-No hard dependency blocks this preparation note. Relationships, Skills, and a calendar provider
-are specifically not hard dependencies.
+No hard dependency blocks this preparation note. Relationships, Skills, and a calendar
+provider are specifically not hard dependencies.
 
-The contract dependency is hard in one narrower sense: context access must not be implemented
-while the `ALLOW` contract is still moving. That does not reclassify it. Preparation does not
-need the contract to exist. Implementation of the read does.
+Neighboring notes use the same words for different tables. Messaging treats the policy
+decision interface as not stable enough to orchestrate, and it forbids an ingress edge into
+this store. Both of those conclusions stand. This table still calls `ALLOW` a contract
+dependency because context access cannot be implemented against a moving decision shape.
+Issue #13 calling #10 hard does not make any upstream module hard for #10.
 
 Module sequence item 6 in `docs/engineering/architecture.md` is unchanged. This note does not
 pull implementation ahead of Skills, Policy, or Messaging, and it does not require those
@@ -144,73 +164,83 @@ modules to be Done before the note itself.
 
 ## Egress allowlist
 
-Successful disclosure constructs a new object. It must not be a store record with fields
-removed. The only permitted keys are:
+This is an information ceiling, not a messaging schema and not an HTTP contract. Messaging
+preparation correctly refuses to freeze skill results into an envelope. The public success
+content is already fixed: the authorized boolean plus safe protocol metadata (`PRV-002`,
+`AC-AUTH-001`).
 
-| Key | Value | Why it is allowed |
+| Information | Allowed where | Rule |
 |---|---|---|
-| `available` | boolean | The authorized derived result required by `FR-004` and `PRV-002`. |
-| `contract` | version token chosen later | Safe protocol metadata. It identifies the result contract. It must not encode the boolean, the interval, or calendar data. |
-| `correlationId` | the ingress correlation id | Safe protocol metadata already required for the request (`OBS-001`). Opaque and not derived from context. |
+| `available` boolean | The context result and, after the final checks, the one public success | The only availability fact. `true` and `false` are the same disclosure. The result type is built new. It is not a store record with fields removed. |
+| Safe protocol metadata | The later public envelope | Only envelope facts that are not derived from the store. Expected kinds are a result-contract version and the ingress correlation id. Names stay with messaging. They must not encode the boolean, the interval, or calendar data. |
+| Anything else | Nowhere public | Reject. `SEC-011`. |
 
-`true` and `false` use that same key set. Both are protected results.
-
-Illustrative only, not a frozen schema:
+Illustrative shape only, not a schema to implement:
 
 ```text
-{ "contract": "pan.availability-result/v1", "correlationId": "<ingress id>", "available": true }
+available: true
 ```
 
-The exact contract string waits for an authorized contract change (`DEV-004`, `AC-DEV-003`).
+plus whatever safe envelope metadata messaging later allows. No sample contract string is
+frozen here (`DEV-004`).
 
 Never egress, log, trace, metric, error text, or audit any of the following:
 
 - event titles, participants, locations, descriptions, or identifiers;
-- source intervals, overlap counts, next-free times, or partial booleans;
+- source intervals, the queried interval, overlap counts, next-free times, or partial booleans;
 - owner timezone, owner identity, policy reason, relationship id, or quota remaining;
 - the derived boolean itself, in logs, traces, metrics, or audit (`AC-PRV-001`, `PRV-004`).
 
 Unauthorized, denied, pending, expired, malformed, budget-exhausted, and dependency-failure
-outcomes have no `available` key and no calendar field (`FR-007`, `FR-008`, `SEC-011`,
-`SEC-018`). Public failure shape belongs to the later messaging and policy contracts. This
-module's duty is to withhold the result.
+outcomes carry no boolean and no calendar field (`FR-007`, `FR-008`, `SEC-011`, `SEC-018`).
+The public failure shape belongs to later messaging and policy work. This module withholds
+the result.
 
-Audit, when a later sink exists, may carry correlation, the skill name, a coarse decision or
-state code, and a timestamp. It does not carry the boolean or the store.
+Audit vocabulary is not invented here. If a later event is emitted, it stays inside the
+slots already reserved for this module: `context.accessed` with outcome `queried` or
+`suppressed`, and `disclosure.released` or `disclosure.suppressed` with a skill token and
+schema version. Those events omit query text, labels, and the boolean value. A coarse
+receipt class such as `boolean-received` is not the boolean. This module does not start a
+second log.
 
 ## Fail-closed rules
 
 These rules follow accepted requirements. They do not settle the reserved decisions.
 
-1. Do not read the store without a current trusted `ALLOW` for the exact binding. Missing,
-   stale, ambiguous, mismatched, expired, or unavailable authority does not read and does
-   not disclose (`SEC-005`, `SEC-010`, `REL-003`, `REL-004`).
-2. Re-check current policy and revocation immediately before the read and immediately before
-   disclosure (`SEC-009`). An indeterminate re-check stops the pipeline. Do not use a cached
-   grant or a cached boolean.
-3. `ASK` pending, `DENY`, rejection, and expiry do not query context and do not return a
-   boolean (`FR-007`, `FR-008`, `PRV-003`). Approval without a fresh authorizing decision
-   does not open the store.
-4. Do not prefetch, warm, or derive "just in case" before that decision.
+1. Do not read the store without current trusted authority for the exact binding. On the
+   direct path that authority is a fresh `ALLOW`. On the `ASK` path it is the approval spend
+   after its pre-read check. Missing, stale, ambiguous, mismatched, expired, or unavailable
+   authority does not read and does not disclose (`SEC-005`, `SEC-010`, `REL-003`,
+   `REL-004`). Pending `ASK` is not authority.
+2. Re-check current authority and revocation immediately before the read and immediately
+   before disclosure (`SEC-009`). An indeterminate re-check stops the pipeline. Do not use a
+   cached grant or a cached boolean.
+3. `DENY`, rejection, expiry, and approval create-pending do not query context and do not
+   return a boolean (`FR-007`, `FR-008`, `PRV-003`).
+4. Do not prefetch, warm, or derive before that decision.
 5. Remote or model text cannot widen the query, change policy, or select fields (`SEC-004`,
    `SEC-013`, `AC-SEC-001`).
 6. An interval that is absent, malformed, unbounded, or not valid under an approved time
    rule is not queried (`SEC-014`, `AC-VAL-001`). No approved time rule exists yet, so
    implementation must not invent one to get past this gate.
 7. Store overflow, a store error, a timeout, or a malformed store record does not become
-   `available: true` or `available: false`. Empty of busy intervals, after a valid authorized
+   `available: true` or `available: false`. An empty busy set, after a valid authorized
    query, is a successful `true`. That success is distinct from an unreadable store.
 8. Budget exhaustion or an uncertain budget check does not read and does not look like a
    busy result. The numeric budget itself is reserved.
-9. Egress copies only the allowlist into a new object (`SEC-011`). If `available` is not a
-   boolean, disclose nothing.
-10. A second evaluation of the same request id is not this module's replay store (`SEC-007`).
-    Orchestration must not call the port twice. The port also has no hidden read.
-11. External AI receives nothing and is not called if derivation fails (`PRV-007`).
-12. Delivered results are not retracted by this module. In-flight and pending revocation
-    remains the open MVP-scope item 5, owned with Approval and Authorization. This port
-    must be able to drop an undelivered result when the final re-check fails. It does not
-    decide that item.
+9. The result contributes only the boolean (`SEC-011`). If that value is not a boolean,
+   disclose nothing. Do not copy store fields out by deletion.
+10. The same request id does not cause a second read (`SEC-007`). This module does not keep
+    the boolean to answer a later status read. Whether any later read may show that boolean
+    again is the open approval decision on duplicate observation, not a context-port cache.
+11. Do not return the boolean unless a minimized event was acknowledged with an exact
+    success. Timeout, throw, partial write, or an indeterminate ack discards the value and
+    discloses nothing. The event is not durable-audit acceptance. Issue #12's retention
+    choices are not required for this rule, and they are not waived by it.
+12. External AI receives nothing and is not called if derivation fails (`PRV-007`).
+13. Delivered results are not retracted by this module. In-flight and pending revocation
+    remains open MVP-scope item 5, with Approval. This port must drop an undelivered value
+    when the final re-check or the event ack fails. It does not decide item 5.
 
 Until `PO-CTX-1` through `PO-CTX-4` are explicitly approved, there is no temporary overlap
 rule, timezone default, horizon, or budget. Guessing is a product decision and is forbidden.
@@ -353,22 +383,29 @@ statement, function, and branch coverage before Ready for Development test confi
 
 Developer evidence later, named with the `AC-*` ids:
 
-- `AC-AUTH-001`: an exact current permission and a valid interval yield only the allowlisted
-  keys. Source events are absent. `true` and `false` share that key set.
+- `AC-AUTH-001`: an exact current permission and a valid interval yield the boolean and no
+  other availability fact. Source events are absent. `true` and `false` use the same shape.
+  Envelope metadata, if present, is not taken from the store.
 - `AC-PRV-001`: fixtures contain synthetic titles, people, and locations. Remote output is
   only the boolean plus safe metadata. Logs, traces, metrics, errors, and audit contain
-  none of those labels and none of the derived boolean, for both `true` and `false`.
+  none of those labels, none of the query text, and none of the derived boolean, for both
+  `true` and `false`.
 - `AC-VAL-001` and `SEC-014`: malformed, inverted, oversized, and non-approved intervals,
-  plus an unavailable policy or store dependency, stay bounded and disclose nothing.
+  plus an unavailable policy, store, or event-ack dependency, stay bounded and disclose
+  nothing.
 - `AC-SEC-001` and `SEC-010`: instructions in the message or in an event title do not change
-  the boolean, the policy input, or the egress keys. A model-shaped extra field never leaves.
-- `AC-AUTH-002`, `FR-007`, and `PRV-003`: `DENY`, pending `ASK`, rejection, and expiry do
-  not call the store. Assert the read count.
+  the boolean or the policy input. A model-shaped extra field never leaves.
+- `AC-AUTH-002`, `FR-007`, and `PRV-003`: `DENY`, pending `ASK`, rejection, expiry, and
+  approval create-pending do not call the store. Assert the read count. A later spend is
+  the only `ASK` call, and only with the bound input.
 - `SEC-009`: revocation between decision and read, and between read and disclosure, leaves
-  no boolean. A stale `ALLOW` is not enough.
-- `SEC-007`: a duplicate request id does not cause a second read or a second disclosure.
-- `SEC-011`: the allowlist is a new object. Unexpected keys, nested events, and partial maps
-  fail closed rather than being copied through.
+  no boolean. A stale `ALLOW` or a stale approval is not enough.
+- `SEC-007`: the same request id does not cause a second read. The port has no stored
+  boolean. The status-read oracle stays with the open approval decision.
+- `SEC-011`: the result is a new boolean value. Unexpected keys, nested events, and partial
+  maps fail closed rather than being copied through.
+- Event acknowledgement: a missing, false, or indeterminate ack returns no boolean. The
+  acknowledged event has no labels, query text, or boolean value.
 - `FR-010` and `PRV-007`: no calendar-provider client and no external-AI call. Import tests
   keep messaging, discovery, relationships, and external AI away from the store.
 - Empty store after a valid authorization is `available: true`. Store failure has no
@@ -409,8 +446,8 @@ This note is the preparation that is safe now. It does not need a stable `ALLOW`
 ## Work that stays blocked
 
 - Any code, test, fixture implementation, adapter, route, or migration for this module.
-- Querying or disclosing context on a request path, including behind a stand-in `ALLOW`.
-  The policy contract is not stable enough.
+- Querying or disclosing context on a request path, including behind a stand-in `ALLOW`
+  or a stand-in approval spend. The policy contract is not stable enough.
 - Implementing overlap, timezone, DST, horizon, duration, or budget behavior, including
   "temporary" defaults for R-CTX.
 - A real calendar provider or an external AI path.
@@ -431,6 +468,7 @@ Product Owner authorization. None of those are claimed here.
 | Query only after authorization | `FR-005`, `PRV-003`, `SEC-010` | Fail-closed rule. Access implementation blocked on the policy contract. |
 | Allowlisted egress | `FR-006`, `SEC-011`, `AC-AUTH-001` | Allowlist specified. Not coded. |
 | Revocation immediately before access and disclosure | `SEC-009`, `REL-004` | Rule specified. Contract not stable. In-flight product choice left where it already sits. |
-| No raw context or derived result in logs | `PRV-004`, `AC-PRV-001` | Egress and audit exclusion specified. |
+| No raw context or derived result in logs | `PRV-004`, `AC-PRV-001` | Egress and audit exclusion specified. Event names stay with Audit's reserved slots. |
+| Ack before the boolean is returned | Audit Class C, `REL-003` | Integration rule. Does not make Issue #12 Done, and does not accept a process-local sink as durable audit. |
 | Repeated queries | `PRV-008` | Reserved as `PO-CTX-4`. Discovery numbers are not reused. |
 | Interval, zone, horizon, budget | MVP-scope item 2, Issue #10 | Reserved as R-CTX. Boolean clause of that item is not reused. |
