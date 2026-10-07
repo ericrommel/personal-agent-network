@@ -1,6 +1,6 @@
 # Relationships
 
-Status: Ready for PO
+Status: In Development
 Owner roles: Engineering Coordinator, Product Analyst, Software Architect, Security & Privacy Engineer, Backend Engineer, Quality Engineer
 Last updated: 2026-10-06
 Tracking: GitHub Issue #7; subtasks #20, #21, #22, #23, #24, #25; roadmap Issue #15
@@ -18,7 +18,7 @@ and `revoked`. The human owner mutates it through a trusted local path. A later 
 may read a boolean. Invitation UX, groups, contact management, remote mutation, skill policy,
 messaging, approval, durable audit, and PostgreSQL are out of this slice.
 
-This plan does not authorize source files under `src/modules/relationships/`.
+Issue #7 authorizes `src/modules/relationships/` for the approved process-local slice. It does not authorize PostgreSQL, remote mutation, or invitation flow.
 
 ## Requirements and acceptance criteria
 
@@ -121,7 +121,10 @@ security review after code exists.
 - [x] 2026-10-06: Coordinator wrote the specification, architecture, and threat analysis after
       the other specialist runs timed out, and reconciled the revoke-observer and re-seed
       rules.
-- [x] 2026-10-06: Readiness package posted. Functional implementation remains stopped.
+- [x] 2026-10-06: Readiness package posted.
+- [x] 2026-10-06: Human Product Owner approved PO-REL-1 through PO-REL-6 for development.
+- [x] 2026-10-07: Domain record and guard implemented. Store and service implemented after the service specialist timed out before writing files. Security and QE review of this code are still required.
+- [ ] Security review, QE verification, and engineering acceptance.
 
 ## Discoveries and decision log
 
@@ -134,11 +137,16 @@ security review after code exists.
 - 2026-10-06: Backend keeps a revoke that has already been written when the observer throws.
   The coordinator accepted that over a rollback, because rollback would restore authority.
   Create still rolls back.
+- 2026-10-07: The record does not store timestamps. Audit owns later event time.
+- 2026-10-07: A throwing create observer deletes that directed pair. A failed create cannot
+  leave an active row, including a row inserted by a re-entrant observer.
+- 2026-10-07: The full-module and store/service specialist runs timed out before writing
+  the service. The domain specialist delivered the record. The coordinator wrote the
+  store and service. Independent Security and QE review is still required.
 
 ## Handoff and completion evidence
 
 Preparation evidence is the module documents under `docs/modules/relationships/`, this plan,
-and the Issue #7 readiness comment. The Human Product Owner has not approved development.
-The next authorized step is an explicit Ready for Development decision on PO-REL-1 through
-PO-REL-6, or a rejection of specific recommendations. Implementation does not start from
-this plan alone.
+and the Issue #7 readiness comment. Development was approved on Issue #7. This plan does not record Engineering Accepted.
+A throwing create observer clears that directed pair, so a failed create cannot leave an
+active row. Timestamps are not stored in this slice.
