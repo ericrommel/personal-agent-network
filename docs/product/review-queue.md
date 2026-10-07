@@ -60,10 +60,12 @@ Status values:
 - Reversibility: invitation, durability, and remote protocol behavior were not
   built, so those later choices remain open. The in-memory semantics can be
   replaced by a PostgreSQL adapter behind the same port.
-- Implementation status: `In Development` under the existing approval. Final
-  engineering acceptance is not claimed here.
-- Tests and evidence: preparation package in PR #32. Implementation evidence
-  will be added when verification completes.
+- Implementation status: `In Development` in PR #46. Local verification passed.
+  Final engineering acceptance is not claimed. Security and QE review of the
+  code are still required.
+- Tests and evidence: preparation package in PR #32. PR #46 has developer tests
+  for the next local read, direction, rollback, and separation. In-flight
+  revocation is not claimed.
 - Residual risks: preparation Security and Architecture runs timed out. An
   independent implementation review is still required. In-memory revocation
   disappears on restart.
@@ -308,11 +310,12 @@ Status values:
 - Reversibility: high before a public schema exists. Widening later is possible.
   Narrowing later is harder if a wider rule ships first, so the narrow rule is
   the one being prepared.
-- Implementation status: recorded for preparation. A pure evaluator may encode
-  the deny-by-default mapping. It must not grant permission, choose interval
-  meaning, or choose which demo requests are `ASK` versus `ALLOW`.
-- Tests and evidence: specification and test plan on the Skills preparation
-  branch. No implementation evidence yet.
+- Implementation status: the provisional evaluator is in PR #47. It encodes the
+  deny-by-default mapping. It does not grant permission, choose interval
+  meaning, or choose which requests are seeded `ASK` versus `ALLOW`. Not
+  Engineering Accepted.
+- Tests and evidence: `tests/unit/modules/policy/evaluate-policy.test.ts`. Local
+  verification passed. Independent Security and QE review is still required.
 - Residual risks: a later service could treat these autonomous choices as Human
   Product Owner ratification. They are not.
 - Deferred limitations: purpose source, permission-grant authority, interval
