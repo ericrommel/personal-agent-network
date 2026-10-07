@@ -264,6 +264,9 @@ These do not block engineering.
 - PRQ-011 is `PO review pending — ratification only`. The deny-by-default
   evaluator merged in PR #47. Security found no blocking finding. The Skills
   module is not Engineering Accepted.
+- PRQ-014 is `PO review pending — ratification only`. The process-local skill
+  advertisement merged in PR #49 as `5d13fdb`. It grants nothing. Security
+  found no blocking finding.
 - Identity and Discovery were accepted before this packet.
 
 ## Work that continues without these decisions
