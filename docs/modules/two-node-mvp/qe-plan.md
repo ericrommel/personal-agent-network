@@ -44,7 +44,7 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 - The CLI adapter must not grow a grant or revoke command. Owner mutation stays on the existing local services.
 - External AI stays out of the suite.
 - No product UI.
-- The older two-process probes above are not Issue #13 acceptance. Engineering Accepted for the integrated demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08`. Human Product Owner acceptance is not checked. The test command does not check either box.
+- The older two-process probes above are not Issue #13 acceptance. Engineering Accepted for the integrated demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08`. The Human Product Owner accepted that demonstration on 2026-10-08. The test command does not check either box.
 
 ## Commands that are not acceptance
 

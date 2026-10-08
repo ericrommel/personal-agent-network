@@ -8,6 +8,8 @@ Preparation note for Issue #9. It is not implementation authorization, not an AD
 
 The Human Product Owner authorized a minimal HTTPS mutual-TLS ingress and named the MVP replay parameters on Issue #13. ADR-0007 records a 5-minute maximum window, 30 seconds of skew, and a single-use envelope `messageId`. The sender remains the certificate URI SAN. The ingress is Node's built-in HTTPS server on `POST /pan/availability/v1`, with mutual TLS and a 16 KiB body cap. It does not listen from `src/main.ts` or the CLI. `PostgresReplayStore` is the durable message-id adapter. The node does not open a pool and does not construct that store. The sections below stay the earlier preparation record. Sentences there that leave the window unset are that record, not an open gate.
 
+Engineering Accepted for this bounded module is main `732ed384c72f57bf67c1b19c04a54c94456c6095`. The accepted scope is the availability envelope and ingress in ADR-0007: mutual TLS, sender binding from the certificate URI SAN, recipient binding, issued-at and expiry, single-use `messageId` replay, fail-closed validation, and the non-revealing public result. The body `requestId` remains the approval binding so a later fresh envelope can release an approved ASK. That is not a second network replay key. Quality on reviewed head `55a65f29a7146a853cab2e064e0de09ba4d3c0a3` executed this path in `tests/integration/durable-ingress-demo.test.ts`. Human Product Owner acceptance of Issue #9 is not recorded. No new Reserved Product Decision is open.
+
 Research that may exist only on Issue #9 is not a contract. This note does not adopt it.
 
 Accepted constraints used here:
