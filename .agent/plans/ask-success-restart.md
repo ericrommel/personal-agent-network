@@ -91,6 +91,9 @@ the live SQL evidence.
 
 - 2026-10-08: Keep this probe on the success path. The composed deny probe
   already covers a revoked relationship.
+- 2026-10-08: Retry `23505` on `pg_type_typname_nsp_index`. Parallel
+  `CREATE TABLE IF NOT EXISTS` can lose that race. Any other error still
+  fails the probe.
 
 ## Handoff and completion evidence
 
