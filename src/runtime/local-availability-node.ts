@@ -6,7 +6,9 @@ import {
   APPROVAL_SKILL_VERSION_V1,
   type ApprovalRecord,
   ApprovalService,
+  type ApprovalStore,
   InMemoryApprovalStore,
+  type PostgresApprovalStore,
 } from "../modules/approval/index.js";
 import {
   type AuditCategory,
@@ -66,6 +68,7 @@ export type LocalAvailabilityNodeOptions = Readonly<{
   context?: SimulatedPrivateContext;
   findAgent?: (id: unknown) => Promise<unknown>;
   relationshipStore?: RelationshipStorePort;
+  approvalStore?: ApprovalStore;
 }>;
 
 type QueryInput = Readonly<{
@@ -85,9 +88,10 @@ const silentEvents = { record(): void {} };
 
 /**
  * Process-local wiring for one availability node.
- * The default stores drop on restart. An injected PostgreSQL relationship store
- * or audit log can outlive the process. handle waits for the audit append.
- * These options are not two-node acceptance evidence.
+ * The default stores drop on restart. An injected PostgreSQL relationship store,
+ * approval store, or audit log can outlive the process. handle waits for the
+ * audit append, and approval calls wait for the approval store. These options
+ * are not two-node acceptance evidence.
  */
 export class LocalAvailabilityNode {
   readonly auditLog: LocalAuditLog;
@@ -112,7 +116,7 @@ export class LocalAvailabilityNode {
     const parties = { findAgent };
     this.approvals = new ApprovalService({
       clock: options.clock,
-      store: new InMemoryApprovalStore(),
+      store: options.approvalStore ?? new InMemoryApprovalStore(),
     });
     this.relationships = new RelationshipService({
       parties,
@@ -129,9 +133,7 @@ export class LocalAvailabilityNode {
       events: silentEvents,
       store: new InMemorySkillPermissionStore(silentEvents),
       approvals: {
-        invalidateUnreleased: (from, to) => {
-          this.approvals.invalidateUnreleased(from, to);
-        },
+        invalidateUnreleased: (from, to) => this.approvals.invalidateUnreleased(from, to),
       },
     });
     this.availability = new AvailabilityService({
@@ -174,7 +176,7 @@ export class LocalAvailabilityNode {
         if (relationshipActive === false) {
           invalidated = true;
         }
-        return this.releaseByRequestId(requestId, relationshipActive);
+        return await this.releaseByRequestId(requestId, relationshipActive);
       },
       queryAvailability: (input) => this.queryAvailability(input),
     });
@@ -194,7 +196,7 @@ export class LocalAvailabilityNode {
       input.requesterId,
       input.targetId,
     );
-    if (decision === "ALLOW" || (decision === "ASK" && this.#askAuthorized(input))) {
+    if (decision === "ALLOW" || (decision === "ASK" && (await this.#askAuthorized(input)))) {
       return this.availability.readAuthorizedBoolean(input.requesterId, {
         start: input.start,
         end: input.end,
@@ -203,8 +205,8 @@ export class LocalAvailabilityNode {
     return null;
   }
 
-  releaseByRequestId(requestId: string, relationshipActive: boolean): boolean {
-    const record = this.approvals.findByRequestId(requestId);
+  async releaseByRequestId(requestId: string, relationshipActive: boolean): Promise<boolean> {
+    const record = await this.approvals.findByRequestId(requestId);
     if (record === null) {
       return false;
     }
@@ -218,7 +220,7 @@ export class LocalAvailabilityNode {
     start: string;
     end: string;
   }): Promise<unknown> {
-    const created = this.approvals.createAsk({
+    const created = await this.approvals.createAsk({
       requestId: binding.requestId,
       fromAgentId: binding.requesterId,
       toAgentId: binding.targetId,
@@ -235,8 +237,8 @@ export class LocalAvailabilityNode {
     return approvalView(created.value);
   }
 
-  #askAuthorized(input: QueryInput): boolean {
-    const approval = this.approvals.findByRequestId(input.requestId);
+  async #askAuthorized(input: QueryInput): Promise<boolean> {
+    const approval = await this.approvals.findByRequestId(input.requestId);
     if (!sameApprovedInterval(approval, input)) {
       return false;
     }
@@ -287,6 +289,11 @@ const auditFor = (
   }
   return { category: "decision", outcome: "unavailable" };
 };
+
+type _PostgresApprovalMatchesStore = PostgresApprovalStore extends ApprovalStore ? true : never;
+
+const _postgresApprovalMatchesStore: _PostgresApprovalMatchesStore = true;
+void _postgresApprovalMatchesStore;
 
 type _PostgresAuditMatchesPort = PostgresAuditLog extends AuditAppendPort ? true : never;
 
