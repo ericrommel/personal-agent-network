@@ -25,9 +25,9 @@ Resolved since that check:
 
 Still open for Issue #13:
 
-- Engineering Accepted for the demonstration. ADR-0007 records the 5-minute validity window and 30-second skew. The mutual-TLS composition is not that acceptance check.
-- Whole-module messaging acceptance. The in-process boundary, the mutual-TLS server, and the two-process probes are not that acceptance. `src/main.ts` and the CLI do not listen.
-- Human Product Owner acceptance of the demonstration. Engineering does not infer it. Engineering Accepted is not claimed.
+- Human Product Owner acceptance of the demonstration. Engineering does not infer it and does not check that box.
+
+Engineering Accepted for the demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). ADR-0007 records the 5-minute validity window and 30-second skew. Whole-module messaging acceptance remains a separate Issue #9 record. `src/main.ts` and the CLI do not listen.
 
 PR #85 is on main. A restarted process loads the revoked relationship, returns `{ outcome: "unavailable" }`, reads no context, and leaves the approved ASK approved. That probe is not Issue #13 acceptance.
 

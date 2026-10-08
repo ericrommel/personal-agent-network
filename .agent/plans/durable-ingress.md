@@ -26,4 +26,4 @@ The handshake and the demonstration generate throwaway certificates with `openss
 
 ## Risks, assumptions, and open questions
 
-Engineering Accepted on Issue #13 stays unchecked until independent review of this demonstration. Human acceptance stays human-only.
+Engineering Accepted for Issue #13 is the coordinator record on main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` after review of the extended demonstration. Human acceptance stays human-only.
