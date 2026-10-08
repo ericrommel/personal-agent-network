@@ -434,7 +434,11 @@ describe("local audit log", () => {
       "AUDIT_CATEGORIES",
       "AUDIT_ERROR_CODES",
       "AUDIT_OUTCOMES",
+      "AUDIT_SCHEMA_SQL",
       "LocalAuditLog",
+      "PostgresAuditLog",
+      "applyAuditSchema",
+      "createPgPool",
     ]);
     expect(auditModule).not.toHaveProperty("query");
     expect(auditModule).not.toHaveProperty("parseTrustedAuditOperator");

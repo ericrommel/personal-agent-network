@@ -1,5 +1,12 @@
 export { type AuditClock, LocalAuditLog } from "./audit-log.js";
 export {
+  applyAuditSchema,
+  AUDIT_SCHEMA_SQL,
+  createPgPool,
+  PostgresAuditLog,
+} from "./postgres-audit-log.js";
+export type { SqlPool } from "./postgres-audit-log.js";
+export {
   AUDIT_CATEGORIES,
   AUDIT_ERROR_CODES,
   AUDIT_OUTCOMES,
