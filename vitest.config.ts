@@ -70,6 +70,12 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        "src/modules/external-ai/**": {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         "src/runtime/**": {
           branches: 100,
           functions: 100,

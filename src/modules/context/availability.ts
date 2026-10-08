@@ -73,6 +73,18 @@ const parseBusyInterval = (value: unknown): ParsedInterval | null => {
   return { startMs, endMs };
 };
 
+/** True when the interval is a future half-open UTC window inside the D5 horizon. */
+export const availabilityIntervalAccepted = (interval: unknown, nowMs: number): boolean => {
+  if (
+    typeof nowMs !== "number" ||
+    !Number.isSafeInteger(nowMs) ||
+    !Number.isSafeInteger(nowMs + AVAILABILITY_HORIZON_MS)
+  ) {
+    return false;
+  }
+  return parseQueryInterval(interval, nowMs) !== null;
+};
+
 const parseQueryInterval = (value: unknown, nowMs: number): ParsedInterval | null => {
   const interval = parseBusyInterval(value);
   if (interval === null) {

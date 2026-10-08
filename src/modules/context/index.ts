@@ -1,4 +1,4 @@
-export { AvailabilityService } from "./availability.js";
+export { availabilityIntervalAccepted, AvailabilityService } from "./availability.js";
 export {
   AVAILABILITY_BUDGET_WINDOW_MS,
   AVAILABILITY_CALLER_BUDGET,

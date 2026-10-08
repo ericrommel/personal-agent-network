@@ -138,7 +138,7 @@ const readRemoteResult = async (
     reachedHandle = true;
     const handled = await dependencies.handle(accepted.principal, accepted.body);
     return Object.freeze({
-      body: publicResponse(handled) ?? unavailable(),
+      body: readPublicAvailabilityResponse(handled) ?? unavailable(),
       abortUpload: false,
     });
   } catch {
@@ -255,7 +255,7 @@ const parseJson = (raw: string): unknown => {
   }
 };
 
-const publicResponse = (value: unknown): AvailabilityResponse | null => {
+export const readPublicAvailabilityResponse = (value: unknown): AvailabilityResponse | null => {
   if (exact(value, "result", (item) => typeof item === "boolean")) {
     return Object.freeze({ result: (value as { result: boolean }).result });
   }

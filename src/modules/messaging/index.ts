@@ -10,6 +10,7 @@ export {
   type AvailabilityDenial,
   type AvailabilityResponse,
   type AvailabilitySuccess,
+  unavailable,
 } from "./contracts.js";
 export { principalFromUriSan } from "./mtls-principal.js";
 export { acceptRemoteEnvelope, type AcceptedEnvelope } from "./remote-envelope.js";
