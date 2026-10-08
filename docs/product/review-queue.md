@@ -54,6 +54,8 @@ Issue #13 is Engineering Accepted on main `7d47568533f8e2216ddcdd13d5c969d905fb6
 
 Issue #9 is Engineering Accepted for the bounded mutual-TLS availability ingress on main `732ed384c72f57bf67c1b19c04a54c94456c6095`. ADR-0007 is the scope: sender binding, recipient binding, freshness, single-use `messageId` replay, and the non-revealing public result. The same quality job executed that path. The module is Ready for PO Acceptance. Human Product Owner acceptance of Issue #9 is not recorded.
 
+Issue #14 is In Development for the provider-neutral availability slice in ADR-0008. The model is not a PAN identity. It receives only the public availability result. This is not Engineering Accepted and not Human Product Owner acceptance. No new Reserved Product Decision.
+
 ## PRQ-001 — Delegated autonomous delivery
 
 - Module: cross-cutting delivery process.
