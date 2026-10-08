@@ -48,7 +48,9 @@ As of 2026-10-08, at main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`:
 - Two-node, PRQ-009: preparation continues. Acceptance still needs two processes against PostgreSQL, replay rejection, and durable approval and audit reconstruction. The numeric replay window is not chosen. No new Reserved Product Decision blocks that preparation.
 - No new Reserved Product Decision.
 
-The snapshot above is main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`. ADR-0007 later records the remote replay window as a 5-minute maximum validity and 30 seconds of clock skew. That is an engineering decision under resolved D8. It is not a new Reserved Product Decision. Sentences in the snapshot that say the window is not chosen are not a current block. `src/main.ts` and the CLI still do not listen. Engineering Accepted on Issue #13 stays unchecked.
+The snapshot above is main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`. ADR-0007 later records the remote replay window as a 5-minute maximum validity and 30 seconds of clock skew. That is an engineering decision under resolved D8. It is not a new Reserved Product Decision. Sentences in the snapshot that say the window is not chosen, or that two-node acceptance is still open, are not a current block.
+
+Issue #13 is Engineering Accepted on main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). The integrated demonstration is `tests/integration/durable-ingress-demo.test.ts`. Quality on reviewed head `55a65f29a7146a853cab2e064e0de09ba4d3c0a3` executed it: https://github.com/ericrommel/personal-agent-network/actions/runs/37847870648/job/113553162108. Security and Quality found no blocking defect. The module is Ready for PO Acceptance. Human Product Owner acceptance is not recorded. `src/main.ts` and the CLI still do not listen. No new Reserved Product Decision.
 
 ## PRQ-001 — Delegated autonomous delivery
 

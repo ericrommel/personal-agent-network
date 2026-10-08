@@ -1,6 +1,6 @@
 # Integrated acceptance oracles
 
-Status: In Development
+Status: Engineering Accepted
 Owner roles: Backend Engineer, Security & Privacy Engineer, Quality Engineer
 Last updated: 2026-10-08
 
@@ -50,8 +50,9 @@ A skipped local database run is not live evidence. The authorized boolean is fal
 
 ## Progress
 
-- [ ] 2026-10-08: Oracles added on `feat/integrated-acceptance-oracles`. Review and CI are still open.
-- [ ] 2026-10-08: Quality executed the demonstration, then `ask-advertisement-restore` hit the 5 second default while waiting on the shared locks. The Vitest timeout is 30 seconds.
+- [x] 2026-10-08: Oracles added on `feat/integrated-acceptance-oracles`. Review and CI are still open.
+- [x] 2026-10-08: Quality executed the demonstration, then `ask-advertisement-restore` hit the 5 second default while waiting on the shared locks. The Vitest timeout is 30 seconds.
+- [x] 2026-10-08: PR #111 squash-merged as `7d47568533f8e2216ddcdd13d5c969d905fb6e08`. Quality on `55a65f29a7146a853cab2e064e0de09ba4d3c0a3` passed, including the demonstration in 6345ms.
 
 ## Discoveries and decision log
 
@@ -59,4 +60,4 @@ The merged demonstration already proved two processes, mutual TLS, recipient bin
 
 ## Handoff and completion evidence
 
-Review the diff against this plan. Do not mark Issue #13 Engineering Accepted from the unreviewed branch.
+PR #111 is merged. Security and Quality found no blocking defect. Quality job 113553162108 executed the demonstration. Human Product Owner acceptance stays unchecked.
