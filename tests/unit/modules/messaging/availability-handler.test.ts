@@ -122,6 +122,8 @@ describe("availability message boundary", () => {
     };
     expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({ result: true });
     expect(gate.calls.indexOf("query")).toBeLessThan(gate.calls.indexOf("release"));
+    expect(gate.calls.indexOf("release")).toBeLessThan(gate.calls.lastIndexOf("decide"));
+    expect(gate.calls.at(-1)).toBe("decide");
     active = false;
     gate.calls.length = 0;
     expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({
@@ -268,5 +270,21 @@ describe("availability message boundary", () => {
     expect(await handleAvailabilityRequest(principal, body, invalidateDown)).toEqual({
       outcome: "unavailable",
     });
+  });
+
+  it("withholds the boolean when permission changes after the approval is released", async () => {
+    const gate = ports("ASK", true);
+    let decisions = 0;
+    gate.decide = async () => {
+      gate.calls.push("decide");
+      decisions += 1;
+      return decisions < 3 ? "ASK" : "DENY";
+    };
+    expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({
+      outcome: "unavailable",
+    });
+    expect(gate.calls).toContain("release");
+    expect(gate.calls.filter((call) => call === "invalidate")).toEqual([]);
+    expect(gate.calls.at(-1)).toBe("decide");
   });
 });

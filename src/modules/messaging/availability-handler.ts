@@ -100,6 +100,9 @@ export const handleAvailabilityRequest = async (
   } catch {
     return unavailable();
   }
+  if ((await readDecision(ports, requesterId, request)) !== "ASK") {
+    return unavailable();
+  }
   return released(result);
 };
 
