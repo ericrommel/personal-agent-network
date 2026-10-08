@@ -39,7 +39,7 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 ## Still blocked inside this strategy
 
 - The replay window is the ADR-0007 pair: 5 minutes and 30 seconds. An acceptance test uses those parameters. It does not choose a new window.
-- Injected PostgreSQL adapters are not restart-safe two-node acceptance. The node still does not open a pool. The mutual-TLS server is a runtime boundary, not the two-process acceptance run.
+- The node still does not open a pool. `openDurableAvailabilityResources` opens the existing pools only when that function is called. The two-process mutual-TLS demonstration is `tests/integration/durable-ingress-demo.test.ts`. A skipped local run is not live evidence. Do not check Engineering Accepted from that command alone.
 - Relationship revoke and advertisement withdraw do not invalidate unreleased approvals. Permission revoke does. This plan does not add the other calls.
 - The CLI adapter must not grow a grant or revoke command. Owner mutation stays on the existing local services.
 - External AI stays out of the suite.
@@ -48,4 +48,4 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 
 ## Commands that are not acceptance
 
-`npm.cmd run verify` is the component gate. The two-process probes run in that gate when the database URL is set. They are not the Issue #13 acceptance command. That command does not exist yet. When it does, the evidence record must show the command, both public responses, and a separate read of the receiver's audit that contains neither the boolean nor the calendar.
+`npm.cmd run verify` is the component gate. The two-process probes, including `tests/integration/durable-ingress-demo.test.ts`, run in that gate when the database URL is set. A skipped local run is not live evidence. The demonstration command does not check Engineering Accepted. Its evidence is the public responses and a separate read of the receiver's audit that contains neither the boolean nor the calendar.
