@@ -1,0 +1,11 @@
+title = "PAN secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ephemeral CI database password. It is not a production credential."
+regexes = [
+  '''postgres://pan:pan@(localhost|127\.0\.0\.1)(:5432|:1)?/pan''',
+  '''POSTGRES_PASSWORD: pan''',
+]

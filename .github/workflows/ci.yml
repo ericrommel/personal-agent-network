@@ -12,6 +12,22 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PAN_RELATIONSHIP_DATABASE_URL: postgres://pan:pan@localhost:5432/pan
+    services:
+      postgres:
+        image: postgres:16.10
+        env:
+          POSTGRES_USER: pan
+          POSTGRES_PASSWORD: pan
+          POSTGRES_DB: pan
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pan -d pan"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

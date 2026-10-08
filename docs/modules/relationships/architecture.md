@@ -114,6 +114,10 @@ Preparation recommendation, matching PO-REL-6:
   persistent state. That must happen before Issue #13 acceptance evidence.
 - This preparation adds no dependency.
 
+`PostgresRelationshipStore` is that later adapter. ADR-0006 selects `pg`.
+A revoke in that store survives a new store instance against the same database.
+The in-memory adapter is still not two-node acceptance evidence.
+
 ## Contract version
 
 Local command and event constants, when implementation is authorized, are

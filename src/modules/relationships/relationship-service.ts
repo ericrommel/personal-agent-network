@@ -83,7 +83,7 @@ export class RelationshipService {
 
   async readActive(from: unknown, to: unknown): Promise<boolean> {
     try {
-      const found = this.#store.findByDirectedPair(from, to);
+      const found = await this.#store.findByDirectedPair(from, to);
       if (
         !isRelationship(found) ||
         found.status !== "active" ||
@@ -100,7 +100,7 @@ export class RelationshipService {
       ) {
         return false;
       }
-      const current = this.#store.findByDirectedPair(from, to);
+      const current = await this.#store.findByDirectedPair(from, to);
       return (
         isRelationship(current) &&
         current.status === "active" &&
@@ -138,7 +138,7 @@ export class RelationshipService {
       if (action === "create") {
         return await this.#create(parsed, correlationId, sourceKey);
       }
-      return this.#revoke(parsed, correlationId, sourceKey);
+      return await this.#revoke(parsed, correlationId, sourceKey);
     } catch {
       return rejected("RELATIONSHIP_DEPENDENCY_FAILED");
     }
@@ -168,7 +168,7 @@ export class RelationshipService {
     }
 
     const created = createStoredRelationship(parsed.fromAgentId, parsed.toAgentId);
-    const stored = this.#store.insertActive(
+    const stored = await this.#store.insertActive(
       created,
       acceptedEvent(correlationId, sourceKey, "create"),
     );
@@ -182,12 +182,12 @@ export class RelationshipService {
     return rejected("RELATIONSHIP_DEPENDENCY_FAILED");
   }
 
-  #revoke(
+  async #revoke(
     parsed: ParsedCommand,
     correlationId: string,
     sourceKey: string,
-  ): Result<Relationship, RelationshipError> {
-    const stored = this.#store.revokeMatching(
+  ): Promise<Result<Relationship, RelationshipError>> {
+    const stored = await this.#store.revokeMatching(
       parsed.fromAgentId,
       parsed.toAgentId,
       parsed.relationshipId,
