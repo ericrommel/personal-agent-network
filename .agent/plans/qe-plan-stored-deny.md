@@ -35,5 +35,5 @@ No new ADR. No new Reserved Product Decision. D1 stored effect is unchanged.
 
 ## Risks, assumptions, and open questions
 
-This change does not include the other-requester probe. That probe is a
-separate pull request and is not on main yet.
+This change does not include the other-requester probe. That observation is
+separate, and this note does not record it.
