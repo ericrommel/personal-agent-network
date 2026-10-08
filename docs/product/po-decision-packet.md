@@ -262,20 +262,25 @@ These do not block engineering.
 
 - PRQ-001 is `Resolved`. Delegated autonomous delivery was ratified on
   2026-10-07.
-- PRQ-002 development is `Resolved`. Completion of the approved Relationships
-  slice is `PO review pending — ratification only`. PR #46 merged as
-  `2e04c6a`.
-- PRQ-011 is `PO review pending — ratification only`. The deny-by-default
-  evaluator merged in PR #47. Security found no blocking finding. The Skills
-  module is not Engineering Accepted.
-- PRQ-014 is `PO review pending — ratification only`. The process-local skill
-  advertisement merged in PR #49 as `5d13fdb`. It grants nothing. Security
-  found no blocking finding.
+- PRQ-002 development is `Resolved`. Completion of the approved in-memory
+  Relationships slice was ratified on 2026-10-08. PR #46 merged as `2e04c6a`.
+  That ratification does not make in-memory state restart-safe evidence.
+- PRQ-011 was ratified on 2026-10-08. The deny-by-default evaluator merged in
+  PR #47. Security found no blocking finding. The Skills module is not
+  Engineering Accepted as a whole.
+- PRQ-014 was ratified on 2026-10-08. The process-local skill advertisement
+  merged in PR #49 as `5d13fdb`. It grants nothing. Security found no blocking
+  finding.
 - Identity and Discovery were accepted before this packet.
 
-## Work that continues without these decisions
+## Work in progress
 
-Skill advertisement can proceed because it grants nothing. Permission mutation,
-the policy service's choice of relationship direction, caller-supplied purpose,
-interval computation, approval storage, audit storage, the remote response
-schema, and the two-node implementation stay blocked.
+D1 through D8 are resolved. Sentences above that say a workstream stays blocked
+describe the queue before that resolution.
+
+Permission commands, the directed policy read, the fixed purpose, approval
+storage, audit storage, availability intervals, and the availability message
+boundary are in implementation. Audit and the process-local approval slice are
+Engineering Accepted, with Human Product Owner acceptance still pending.
+Two-node acceptance still requires a verified durable relationship revoke.
+That dependency is PO-REL-6, not a new Reserved Product Decision.

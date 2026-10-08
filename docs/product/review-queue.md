@@ -30,6 +30,20 @@ Status values:
   it. It does not block engineering.
 - `Reserved Product Decision — blocking`: stops only the named workstream.
 
+## Current engineering
+
+Historical "Implementation status" lines below record the state when the item was written. A `Resolved` queue class supersedes a historical "blocked" line. No current item is a Reserved Product Decision.
+
+As of 2026-10-08:
+
+- Audit, PRQ-008: Engineering Accepted in PR #56 (`f747afe91f021d7583636fc3150756a94185090e`). Ready for PO Acceptance. The log is process-local.
+- Approval, PRQ-006 and PRQ-007: Engineering Accepted in PR #58 (`35b18161bcb527ef4cc01f3af63aaeba045217aa`). Ready for PO Acceptance. The store is process-local.
+- Skill permission and policy service, PRQ-005, PRQ-010, and PRQ-003: on main in PR #54 (`81e902ad5a337e8943fdc8e4aef7bc36a12457f8`). Skills and Policy stays In Development until composition wires the approval port.
+- Availability, PRQ-004: PR #57 is open while CI reruns after the coverage-threshold merge with main. The reviewed context sources are unchanged.
+- Messaging boundary, PRQ-012 and PRQ-013: PR #55 is open while CI reruns after the coverage-threshold merge with main. The reviewed handler fix is unchanged.
+- Two-node, PRQ-009: acceptance still needs a verified PostgreSQL revoke (PO-REL-6). That is an engineering dependency, not a new Reserved Product Decision. The durable adapter is in progress.
+- No new Reserved Product Decision.
+
 ## PRQ-001 — Delegated autonomous delivery
 
 - Module: cross-cutting delivery process.
