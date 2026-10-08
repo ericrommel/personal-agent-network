@@ -10,6 +10,12 @@ vi.mock("node:crypto", async (importOriginal) => {
 });
 
 import {
+  createPendingApproval,
+  parseUtcInstant,
+  readApprovalBinding,
+  withApprovalStatus,
+} from "../../../../src/modules/approval/domain/approval.js";
+import {
   APPROVAL_LIFETIME_MS,
   APPROVAL_POLICY_VERSION_V1,
   APPROVAL_PURPOSE_V1,
@@ -24,12 +30,6 @@ import {
   isApprovalId,
   type TrustedApprovalSource,
 } from "../../../../src/modules/approval/index.js";
-import {
-  createPendingApproval,
-  parseUtcInstant,
-  readApprovalBinding,
-  withApprovalStatus,
-} from "../../../../src/modules/approval/domain/approval.js";
 
 const FROM = "pan_agent_11111111-1111-4111-8111-111111111111";
 const TO = "pan_agent_22222222-2222-4222-8222-222222222222";
@@ -114,12 +114,12 @@ const pendingOf = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe("local approval lifecycle", () => {
-  it("returns the same pending record for the same binding", () => {
+  it("returns the same pending record for the same binding", async () => {
     const { service, time, store } = harness();
-    const first = unwrap(service.createAsk(ask()));
+    const first = unwrap(await service.createAsk(ask()));
     time.set("2026-10-08T12:05:00.000Z");
     const second = unwrap(
-      service.createAsk({
+      await service.createAsk({
         policyVersion: APPROVAL_POLICY_VERSION_V1,
         end: "2026-10-08T16:00:00.000Z",
         start: "2026-10-08T15:00:00.000Z",
@@ -138,62 +138,62 @@ describe("local approval lifecycle", () => {
     expect(APPROVAL_LIFETIME_MS).toBe(10 * 60 * 1000);
     expect(store.values()).toEqual([first]);
 
-    const approved = unwrap(service.approve(owner(), first.id));
-    expect(unwrap(service.createAsk(ask()))).toBe(approved);
+    const approved = unwrap(await service.approve(owner(), first.id));
+    expect(unwrap(await service.createAsk(ask()))).toBe(approved);
     expect(store.values()).toEqual([approved]);
   });
 
-  it("conflicts when the same request id has a different binding", () => {
+  it("conflicts when the same request id has a different binding", async () => {
     const { service } = harness();
-    const first = unwrap(service.createAsk(ask()));
-    const changed = service.createAsk(ask({ end: "2026-10-08T17:00:00.000Z" }));
+    const first = unwrap(await service.createAsk(ask()));
+    const changed = await service.createAsk(ask({ end: "2026-10-08T17:00:00.000Z" }));
 
     expect(changed).toEqual(error("APPROVAL_CONFLICT"));
     if (!changed.ok) {
       expect(Object.keys(changed.error)).toEqual(["code"]);
     }
-    expect(service.findByRequestId("req-1")).toBe(first);
-    expect(service.createAsk(ask({ skillVersion: "pan.skill.other/v1" }))).toEqual(
+    expect(await service.findByRequestId("req-1")).toBe(first);
+    expect(await service.createAsk(ask({ skillVersion: "pan.skill.other/v1" }))).toEqual(
       error("APPROVAL_COMMAND_INVALID"),
     );
-    expect(service.findByRequestId("req-1")).toBe(first);
+    expect(await service.findByRequestId("req-1")).toBe(first);
   });
 
-  it("expires a pending approval ten minutes after creation and does not approve it", () => {
+  it("expires a pending approval ten minutes after creation and does not approve it", async () => {
     const { service, time } = harness("2026-10-08T12:00:00.000Z");
-    const early = unwrap(service.createAsk(ask({ requestId: "req-early" })));
-    const boundary = unwrap(service.createAsk(ask({ requestId: "req-boundary" })));
-    const lateReject = unwrap(service.createAsk(ask({ requestId: "req-late-reject" })));
-    const sealed = unwrap(service.createAsk(ask({ requestId: "req-sealed" })));
+    const early = unwrap(await service.createAsk(ask({ requestId: "req-early" })));
+    const boundary = unwrap(await service.createAsk(ask({ requestId: "req-boundary" })));
+    const lateReject = unwrap(await service.createAsk(ask({ requestId: "req-late-reject" })));
+    const sealed = unwrap(await service.createAsk(ask({ requestId: "req-sealed" })));
     expect(early.expiresAt).toBe("2026-10-08T12:10:00.000Z");
 
     time.set("2026-10-08T12:09:59.999Z");
-    expect(unwrap(service.approve(owner(), early.id)).status).toBe("approved");
+    expect(unwrap(await service.approve(owner(), early.id)).status).toBe("approved");
 
     time.set("2026-10-08T12:10:00.000Z");
-    const expired = unwrap(service.approve(owner(), boundary.id));
+    const expired = unwrap(await service.approve(owner(), boundary.id));
     expect(expired.status).toBe("expired");
     expect(expired).toEqual({ ...boundary, status: "expired" });
-    expect(service.release(boundary.id, true)).toBe(false);
-    expect(service.findById(boundary.id)).toBe(expired);
+    expect(await service.release(boundary.id, true)).toBe(false);
+    expect(await service.findById(boundary.id)).toBe(expired);
 
-    expect(unwrap(service.reject(owner(), lateReject.id)).status).toBe("expired");
-    expect(service.release(early.id, true)).toBe(false);
-    expect(service.findById(early.id)?.status).toBe("approved");
+    expect(unwrap(await service.reject(owner(), lateReject.id)).status).toBe("expired");
+    expect(await service.release(early.id, true)).toBe(false);
+    expect((await service.findById(early.id))?.status).toBe("approved");
 
     const untrustedSource: unknown = {
       kind: "trusted-approval-source",
       key: "local-owner",
       note: "calendar",
     };
-    const untrusted = service.approve(untrustedSource as TrustedApprovalSource, sealed.id);
+    const untrusted = await service.approve(untrustedSource as TrustedApprovalSource, sealed.id);
     expect(untrusted).toEqual(error("APPROVAL_COMMAND_INVALID"));
-    expect(service.findById(sealed.id)).toBe(sealed);
+    expect(await service.findById(sealed.id)).toBe(sealed);
   });
 
-  it("approves only through a trusted local owner source", () => {
+  it("approves only through a trusted local owner source", async () => {
     const { service } = harness();
-    const created = unwrap(service.createAsk(ask()));
+    const created = unwrap(await service.createAsk(ask()));
     const badSources = [
       null,
       { kind: "trusted-approval-source", key: "local-owner", context: "inbox" },
@@ -210,93 +210,101 @@ describe("local approval lifecycle", () => {
     ];
 
     for (const source of badSources) {
-      expect(service.approve(source as TrustedApprovalSource, created.id)).toEqual(
+      expect(await service.approve(source as TrustedApprovalSource, created.id)).toEqual(
         error("APPROVAL_COMMAND_INVALID"),
       );
-      expect(service.reject(source as TrustedApprovalSource, created.id)).toEqual(
+      expect(await service.reject(source as TrustedApprovalSource, created.id)).toEqual(
         error("APPROVAL_COMMAND_INVALID"),
       );
     }
-    expect(service.findById(created.id)).toBe(created);
-    expect(service.approve(owner(), "not-an-approval")).toEqual(error("APPROVAL_COMMAND_INVALID"));
-    expect(service.approve(owner(), "pan_approval_missing")).toEqual(
+    expect(await service.findById(created.id)).toBe(created);
+    expect(await service.approve(owner(), "not-an-approval")).toEqual(
+      error("APPROVAL_COMMAND_INVALID"),
+    );
+    expect(await service.approve(owner(), "pan_approval_missing")).toEqual(
       error("APPROVAL_COMMAND_INVALID"),
     );
 
-    const approved = unwrap(service.approve(owner(`a${"b".repeat(127)}`), created.id));
+    const approved = unwrap(await service.approve(owner(`a${"b".repeat(127)}`), created.id));
     expect(approved.status).toBe("approved");
     expect(approved).toEqual({ ...created, status: "approved" });
-    expect(service.approve(owner(), created.id)).toEqual(successOf(approved));
-    expect(service.reject(owner(), created.id)).toEqual(error("APPROVAL_CONFLICT"));
-    expect(service.findById(created.id)).toBe(approved);
+    expect(await service.approve(owner(), created.id)).toEqual(successOf(approved));
+    expect(await service.reject(owner(), created.id)).toEqual(error("APPROVAL_CONFLICT"));
+    expect(await service.findById(created.id)).toBe(approved);
   });
 
-  it("releases an approved row once", () => {
+  it("releases an approved row once", async () => {
     const { service } = harness();
-    const created = unwrap(service.createAsk(ask()));
-    expect(service.release(created.id, true)).toBe(false);
-    expect(service.findById(created.id)).toBe(created);
+    const created = unwrap(await service.createAsk(ask()));
+    expect(await service.release(created.id, true)).toBe(false);
+    expect(await service.findById(created.id)).toBe(created);
 
-    const approved = unwrap(service.approve(owner(), created.id));
-    expect(service.release(approved.id, "true")).toBe(false);
-    expect(service.findById(approved.id)).toBe(approved);
+    const approved = unwrap(await service.approve(owner(), created.id));
+    expect(await service.release(approved.id, "true")).toBe(false);
+    expect(await service.findById(approved.id)).toBe(approved);
 
-    expect(service.release(approved.id, true)).toBe(true);
-    const released = service.findById(approved.id);
+    expect(await service.release(approved.id, true)).toBe(true);
+    const released = await service.findById(approved.id);
     expect(released).toEqual({ ...approved, status: "released" });
-    expect(service.release(approved.id, true)).toBe(false);
-    expect(service.release(approved.id, false)).toBe(false);
-    expect(service.findById(approved.id)).toBe(released);
-    expect(service.approve(owner(), approved.id)).toEqual(error("APPROVAL_CONFLICT"));
-    expect(service.findById(approved.id)).toBe(released);
+    expect(await service.release(approved.id, true)).toBe(false);
+    expect(await service.release(approved.id, false)).toBe(false);
+    expect(await service.findById(approved.id)).toBe(released);
+    expect(await service.approve(owner(), approved.id)).toEqual(error("APPROVAL_CONFLICT"));
+    expect(await service.findById(approved.id)).toBe(released);
   });
 
-  it("invalidates an approved row when the relationship is not active", () => {
+  it("invalidates an approved row when the relationship is not active", async () => {
     const { service } = harness();
-    const created = unwrap(service.createAsk(ask()));
-    const approved = unwrap(service.approve(owner(), created.id));
+    const created = unwrap(await service.createAsk(ask()));
+    const approved = unwrap(await service.approve(owner(), created.id));
 
-    expect(service.release(approved.id, false)).toBe(false);
-    const invalidated = service.findById(approved.id);
+    expect(await service.release(approved.id, false)).toBe(false);
+    const invalidated = await service.findById(approved.id);
     expect(invalidated).toEqual({ ...approved, status: "invalidated" });
-    expect(service.release(approved.id, true)).toBe(false);
-    expect(service.findById(approved.id)).toBe(invalidated);
+    expect(await service.release(approved.id, true)).toBe(false);
+    expect(await service.findById(approved.id)).toBe(invalidated);
   });
 
-  it("keeps a released row when unreleased rows for that ordered pair are invalidated", () => {
+  it("keeps a released row when unreleased rows for that ordered pair are invalidated", async () => {
     const { service, time } = harness();
-    const released = releaseOf(service, "req-released");
-    const pending = unwrap(service.createAsk(ask({ requestId: "req-pending" })));
+    const released = await releaseOf(service, "req-released");
+    const pending = unwrap(await service.createAsk(ask({ requestId: "req-pending" })));
     const approved = unwrap(
-      service.approve(owner(), unwrap(service.createAsk(ask({ requestId: "req-approved" }))).id),
+      await service.approve(
+        owner(),
+        unwrap(await service.createAsk(ask({ requestId: "req-approved" }))).id,
+      ),
     );
     const rejected = unwrap(
-      service.reject(owner(), unwrap(service.createAsk(ask({ requestId: "req-rejected" }))).id),
+      await service.reject(
+        owner(),
+        unwrap(await service.createAsk(ask({ requestId: "req-rejected" }))).id,
+      ),
     );
-    const expiring = unwrap(service.createAsk(ask({ requestId: "req-expired" })));
+    const expiring = unwrap(await service.createAsk(ask({ requestId: "req-expired" })));
     const reverse = unwrap(
-      service.createAsk(ask({ requestId: "req-reverse", fromAgentId: TO, toAgentId: FROM })),
+      await service.createAsk(ask({ requestId: "req-reverse", fromAgentId: TO, toAgentId: FROM })),
     );
 
     time.set("2026-10-08T12:10:00.000Z");
-    const expired = unwrap(service.approve(owner(), expiring.id));
+    const expired = unwrap(await service.approve(owner(), expiring.id));
     expect(expired.status).toBe("expired");
 
-    service.invalidateUnreleased(FROM, TO);
-    service.invalidateUnreleased(FROM, FROM);
-    service.invalidateUnreleased("not-an-agent", TO);
+    await service.invalidateUnreleased(FROM, TO);
+    await service.invalidateUnreleased(FROM, FROM);
+    await service.invalidateUnreleased("not-an-agent", TO);
 
-    expect(service.findById(released.id)).toBe(released);
-    expect(service.findById(pending.id)?.status).toBe("invalidated");
-    expect(service.findById(approved.id)?.status).toBe("invalidated");
-    expect(service.findById(rejected.id)).toBe(rejected);
-    expect(service.findById(expired.id)).toBe(expired);
-    expect(service.findById(reverse.id)).toBe(reverse);
+    expect(await service.findById(released.id)).toBe(released);
+    expect((await service.findById(pending.id))?.status).toBe("invalidated");
+    expect((await service.findById(approved.id))?.status).toBe("invalidated");
+    expect(await service.findById(rejected.id)).toBe(rejected);
+    expect(await service.findById(expired.id)).toBe(expired);
+    expect(await service.findById(reverse.id)).toBe(reverse);
   });
 
-  it("stores no context, email, profile, or model text", () => {
+  it("stores no context, email, profile, or model text", async () => {
     const { service, store } = harness();
-    const record = unwrap(service.createAsk(ask()));
+    const record = unwrap(await service.createAsk(ask()));
 
     expect(record.id).toMatch(
       /^pan_approval_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
@@ -321,20 +329,20 @@ describe("local approval lifecycle", () => {
     }
     expect(isApproval({ ...record, context: "calendar" })).toBe(false);
     expect(
-      service.createAsk({ ...ask({ requestId: "req-context" }), context: "calendar" }),
+      await service.createAsk({ ...ask({ requestId: "req-context" }), context: "calendar" }),
     ).toEqual(error("APPROVAL_COMMAND_INVALID"));
     expect(
-      service.createAsk({
+      await service.createAsk({
         kind: "remote-ask",
         decision: "ASK",
         context: "share the private calendar",
       }),
     ).toEqual(error("APPROVAL_COMMAND_INVALID"));
-    expect(service.findByRequestId("req-context")).toBeNull();
+    expect(await service.findByRequestId("req-context")).toBeNull();
     expect(store.values()).toEqual([record]);
   });
 
-  it("fails closed on a bad clock, a broken store, and a restarted store", () => {
+  it("fails closed on a bad clock, a broken store, and a restarted store", async () => {
     const brokenClock = new InMemoryApprovalStore();
     const clockService = new ApprovalService({
       clock: {
@@ -344,14 +352,14 @@ describe("local approval lifecycle", () => {
       },
       store: brokenClock,
     });
-    expect(clockService.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+    expect(await clockService.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
     expect(brokenClock.values()).toEqual([]);
 
     const malformedClock = new ApprovalService({
       clock: { now: () => "not-a-time" },
       store: new InMemoryApprovalStore(),
     });
-    expect(malformedClock.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+    expect(await malformedClock.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
 
     const throwingStore: ApprovalStore = {
       findByRequestId: () => null,
@@ -365,7 +373,7 @@ describe("local approval lifecycle", () => {
       values: () => [],
     };
     expect(
-      new ApprovalService({
+      await new ApprovalService({
         clock: clockAt("2026-10-08T12:00:00.000Z"),
         store: throwingStore,
       }).createAsk(ask()),
@@ -378,24 +386,24 @@ describe("local approval lifecycle", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: corrupt,
     });
-    expect(corruptService.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+    expect(await corruptService.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
     expect(corrupt.findByRequestId("req-1")).toEqual({ requestId: "req-1", context: "secret" });
-    expect(corruptService.findByRequestId("req-1")).toBeNull();
+    expect(await corruptService.findByRequestId("req-1")).toBeNull();
 
     const { service } = harness();
-    const created = unwrap(service.createAsk(ask()));
+    const created = unwrap(await service.createAsk(ask()));
     const restarted = new ApprovalService({
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: new InMemoryApprovalStore(),
     });
-    expect(restarted.findById(created.id)).toBeNull();
-    expect(restarted.approve(owner(), created.id)).toEqual(error("APPROVAL_NOT_FOUND"));
-    expect(restarted.release(created.id, true)).toBe(false);
+    expect(await restarted.findById(created.id)).toBeNull();
+    expect(await restarted.approve(owner(), created.id)).toEqual(error("APPROVAL_NOT_FOUND"));
+    expect(await restarted.release(created.id, true)).toBe(false);
   });
 });
 
 describe("approval domain guards", () => {
-  it("parses only real UTC instants and rejects non-canonical expiry", () => {
+  it("parses only real UTC instants and rejects non-canonical expiry", async () => {
     expect(parseUtcInstant(null)).toBeNull();
     expect(parseUtcInstant(1)).toBeNull();
     expect(parseUtcInstant("2026-10-08T12:00:00.000Z")).toBe(
@@ -434,7 +442,7 @@ describe("approval domain guards", () => {
     }
   });
 
-  it("rejects non-records, bad prototypes, and thrown bindings", () => {
+  it("rejects non-records, bad prototypes, and thrown bindings", async () => {
     const record = pendingOf();
     expect(isApproval(null)).toBe(false);
     expect(isApproval("pending")).toBe(false);
@@ -475,17 +483,17 @@ describe("approval domain guards", () => {
     expect(withApprovalStatus(record, "approved")).toEqual({ ...record, status: "approved" });
   });
 
-  it("fails closed when id allocation cannot build a record", () => {
+  it("fails closed when id allocation cannot build a record", async () => {
     const invalidId = "not-a-uuid" as ReturnType<typeof randomUUID>;
     vi.mocked(randomUUID).mockReturnValueOnce(invalidId);
     expect(createPendingApproval(bindingOf(), "2026-10-08T12:10:00.000Z")).toBeNull();
     vi.mocked(randomUUID).mockReturnValueOnce(invalidId);
-    expect(harness().service.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+    expect(await harness().service.createAsk(ask())).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
   });
 });
 
 describe("in-memory approval store guards", () => {
-  it("indexes seeded approvals and rejects non-string ids", () => {
+  it("indexes seeded approvals and rejects non-string ids", async () => {
     const seeded = pendingOf({ requestId: "req-seed" });
     const store = new InMemoryApprovalStore([
       ["req-seed", seeded],
@@ -504,7 +512,7 @@ describe("in-memory approval store guards", () => {
     expect(indexed.findByRequestId("req-seed")).toBe(seeded);
   });
 
-  it("rejects illegal inserts and replaces", () => {
+  it("rejects illegal inserts and replaces", async () => {
     const first = pendingOf({ requestId: "req-a" });
     const second = pendingOf({ requestId: "req-b" });
     const duplicateId = Object.freeze({ ...second, id: first.id }) as ApprovalRecord;
@@ -531,7 +539,7 @@ describe("in-memory approval store guards", () => {
     expect(store.replace(approved)).toBe(approved);
   });
 
-  it("fails closed when map operations throw", () => {
+  it("fails closed when map operations throw", async () => {
     const record = pendingOf({ requestId: "req-throw" });
     const store = new InMemoryApprovalStore([["req-throw", record]]);
     const originalGet = Map.prototype.get;
@@ -577,24 +585,26 @@ describe("in-memory approval store guards", () => {
 });
 
 describe("approval service fail-closed paths", () => {
-  it("rejects non-id release, bad clocks, corrupt rows, and failed saves", () => {
+  it("rejects non-id release, bad clocks, corrupt rows, and failed saves", async () => {
     const { service, time } = harness();
-    const created = unwrap(service.createAsk(ask()));
-    expect(service.release("not-an-id", true)).toBe(false);
-    expect(service.release(null, true)).toBe(false);
-    expect(service.release(1, true)).toBe(false);
+    const created = unwrap(await service.createAsk(ask()));
+    expect(await service.release("not-an-id", true)).toBe(false);
+    expect(await service.release(null, true)).toBe(false);
+    expect(await service.release(1, true)).toBe(false);
 
-    const approved = unwrap(service.approve(owner(), created.id));
+    const approved = unwrap(await service.approve(owner(), created.id));
     time.set("not-a-time");
-    expect(service.release(approved.id, true)).toBe(false);
+    expect(await service.release(approved.id, true)).toBe(false);
     time.set("2026-10-08T12:00:00.000Z");
 
     const badClock = new ApprovalService({
       clock: { now: () => "not-a-time" },
       store: new InMemoryApprovalStore([[approved.requestId, approved]]),
     });
-    expect(badClock.approve(owner(), approved.id)).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
-    expect(badClock.release(approved.id, true)).toBe(false);
+    expect(await badClock.approve(owner(), approved.id)).toEqual(
+      error("APPROVAL_DEPENDENCY_FAILED"),
+    );
+    expect(await badClock.release(approved.id, true)).toBe(false);
 
     const corruptStore: ApprovalStore = {
       findByRequestId: () => ({ corrupt: true }),
@@ -607,12 +617,12 @@ describe("approval service fail-closed paths", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: corruptStore,
     });
-    expect(corruptService.approve(owner(), VALID_APPROVAL_ID)).toEqual(
+    expect(await corruptService.approve(owner(), VALID_APPROVAL_ID)).toEqual(
       error("APPROVAL_DEPENDENCY_FAILED"),
     );
-    expect(corruptService.findById(VALID_APPROVAL_ID)).toBeNull();
-    expect(corruptService.findByRequestId("req-1")).toBeNull();
-    expect(corruptService.createAsk(ask({ requestId: "req-num" }))).toEqual(
+    expect(await corruptService.findById(VALID_APPROVAL_ID)).toBeNull();
+    expect(await corruptService.findByRequestId("req-1")).toBeNull();
+    expect(await corruptService.createAsk(ask({ requestId: "req-num" }))).toEqual(
       error("APPROVAL_DEPENDENCY_FAILED"),
     );
 
@@ -628,10 +638,12 @@ describe("approval service fail-closed paths", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: failingReplace,
     });
-    expect(saveService.approve(owner(), pending.id)).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+    expect(await saveService.approve(owner(), pending.id)).toEqual(
+      error("APPROVAL_DEPENDENCY_FAILED"),
+    );
   });
 
-  it("fails closed when dependencies throw during decide, release, and reads", () => {
+  it("fails closed when dependencies throw during decide, release, and reads", async () => {
     const pending = pendingOf({ requestId: "req-catch" });
     const throwingStore: ApprovalStore = {
       findByRequestId: () => {
@@ -652,9 +664,9 @@ describe("approval service fail-closed paths", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: throwingStore,
     });
-    expect(service.findById(pending.id)).toBeNull();
-    expect(service.findByRequestId("req-catch")).toBeNull();
-    expect(service.invalidateUnreleased(FROM, TO)).toBeUndefined();
+    expect(await service.findById(pending.id)).toBeNull();
+    expect(await service.findByRequestId("req-catch")).toBeNull();
+    expect(await service.invalidateUnreleased(FROM, TO)).toBeUndefined();
 
     const decideStore: ApprovalStore = {
       findByRequestId: () => null,
@@ -669,8 +681,10 @@ describe("approval service fail-closed paths", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: decideStore,
     });
-    expect(decideService.approve(owner(), pending.id)).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
-    expect(decideService.release(pending.id, true)).toBe(false);
+    expect(await decideService.approve(owner(), pending.id)).toEqual(
+      error("APPROVAL_DEPENDENCY_FAILED"),
+    );
+    expect(await decideService.release(pending.id, true)).toBe(false);
 
     const approved = withApprovalStatus(pending, "approved");
     const releaseStore: ApprovalStore = {
@@ -686,25 +700,27 @@ describe("approval service fail-closed paths", () => {
       clock: clockAt("2026-10-08T12:00:00.000Z"),
       store: releaseStore,
     });
-    expect(releaseService.release(approved.id, true)).toBe(false);
+    expect(await releaseService.release(approved.id, true)).toBe(false);
   });
 
-  it("rejects hostile sources and non-string source fields", () => {
+  it("rejects hostile sources and non-string source fields", async () => {
     const { service } = harness();
-    const created = unwrap(service.createAsk(ask()));
+    const created = unwrap(await service.createAsk(ask()));
     const arraySource = [
       "trusted-approval-source",
       "local-owner",
     ] as unknown as TrustedApprovalSource;
-    expect(service.approve(arraySource, created.id)).toEqual(error("APPROVAL_COMMAND_INVALID"));
+    expect(await service.approve(arraySource, created.id)).toEqual(
+      error("APPROVAL_COMMAND_INVALID"),
+    );
     expect(
-      service.approve(
+      await service.approve(
         { kind: "trusted-approval-source", key: 1 } as unknown as TrustedApprovalSource,
         created.id,
       ),
     ).toEqual(error("APPROVAL_COMMAND_INVALID"));
     expect(
-      service.approve(
+      await service.approve(
         { kind: 1, key: "local-owner" } as unknown as TrustedApprovalSource,
         created.id,
       ),
@@ -718,7 +734,9 @@ describe("approval service fail-closed paths", () => {
         },
       },
     ) as TrustedApprovalSource;
-    expect(service.approve(hostileKeys, created.id)).toEqual(error("APPROVAL_COMMAND_INVALID"));
+    expect(await service.approve(hostileKeys, created.id)).toEqual(
+      error("APPROVAL_COMMAND_INVALID"),
+    );
 
     const hostileProto = new Proxy(
       { kind: "trusted-approval-source", key: "local-owner" },
@@ -728,7 +746,9 @@ describe("approval service fail-closed paths", () => {
         },
       },
     ) as TrustedApprovalSource;
-    expect(service.approve(hostileProto, created.id)).toEqual(error("APPROVAL_COMMAND_INVALID"));
+    expect(await service.approve(hostileProto, created.id)).toEqual(
+      error("APPROVAL_COMMAND_INVALID"),
+    );
 
     let prototypeReads = 0;
     const secondProtoThrow = new Proxy(
@@ -743,12 +763,12 @@ describe("approval service fail-closed paths", () => {
         },
       },
     ) as TrustedApprovalSource;
-    expect(service.approve(secondProtoThrow, created.id)).toEqual(
+    expect(await service.approve(secondProtoThrow, created.id)).toEqual(
       error("APPROVAL_COMMAND_INVALID"),
     );
   });
 
-  it("treats non-conflict insert results as dependency failures", () => {
+  it("treats non-conflict insert results as dependency failures", async () => {
     const nullProtoConflict = Object.assign(Object.create(null), {
       code: "APPROVAL_CONFLICT",
     });
@@ -761,7 +781,7 @@ describe("approval service fail-closed paths", () => {
       values: () => [],
     };
     expect(
-      new ApprovalService({
+      await new ApprovalService({
         clock: clockAt("2026-10-08T12:00:00.000Z"),
         store,
       }).createAsk(ask({ requestId: "req-null-proto" })),
@@ -772,7 +792,7 @@ describe("approval service fail-closed paths", () => {
       insertPending: () => wrongKey,
     };
     expect(
-      new ApprovalService({
+      await new ApprovalService({
         clock: clockAt("2026-10-08T12:00:00.000Z"),
         store: wrongKeyStore,
       }).createAsk(ask({ requestId: "req-wrong-key" })),
@@ -783,11 +803,49 @@ describe("approval service fail-closed paths", () => {
       insertPending: () => ["APPROVAL_CONFLICT"],
     };
     expect(
-      new ApprovalService({
+      await new ApprovalService({
         clock: clockAt("2026-10-08T12:00:00.000Z"),
         store: arrayCodeStore,
       }).createAsk(ask({ requestId: "req-array-code" })),
     ).toEqual(error("APPROVAL_DEPENDENCY_FAILED"));
+  });
+
+  it("does not finish createAsk until insertPending settles", async () => {
+    const memory = new InMemoryApprovalStore();
+    let releaseInsert: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseInsert = resolve;
+    });
+    let started = false;
+    const service = new ApprovalService({
+      clock: clockAt("2026-10-08T12:00:00.000Z"),
+      store: {
+        findByRequestId: (requestId) => memory.findByRequestId(requestId),
+        findById: (id) => memory.findById(id),
+        insertPending(record) {
+          started = true;
+          return gate.then(() => memory.insertPending(record));
+        },
+        replace: (record) => memory.replace(record),
+        values: () => memory.values(),
+      },
+    });
+    let settled = false;
+    const pending = service.createAsk(ask()).then((result) => {
+      settled = true;
+      return result;
+    });
+    // A store promise that is not awaited is a failed shape on later microtasks.
+    // A macrotask runs only after that chain.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(started).toBe(true);
+    expect(settled).toBe(false);
+    expect(memory.values()).toEqual([]);
+    releaseInsert();
+    expect((await pending).ok).toBe(true);
+    expect(settled).toBe(true);
   });
 });
 
@@ -796,11 +854,11 @@ const successOf = (record: ApprovalRecord) => ({
   value: record,
 });
 
-const releaseOf = (service: ApprovalService, requestId: string): ApprovalRecord => {
-  const created = unwrap(service.createAsk(ask({ requestId })));
-  const approved = unwrap(service.approve(owner(), created.id));
-  expect(service.release(approved.id, true)).toBe(true);
-  const released = service.findById(approved.id);
+const releaseOf = async (service: ApprovalService, requestId: string): Promise<ApprovalRecord> => {
+  const created = unwrap(await service.createAsk(ask({ requestId })));
+  const approved = unwrap(await service.approve(owner(), created.id));
+  expect(await service.release(approved.id, true)).toBe(true);
+  const released = await service.findById(approved.id);
   if (released === null) {
     throw new Error("Expected the released approval");
   }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ApprovalRecord, TrustedApprovalSource } from "../../../src/modules/approval/index.js";
+import {
+  type ApprovalRecord,
+  InMemoryApprovalStore,
+  type TrustedApprovalSource,
+} from "../../../src/modules/approval/index.js";
 import type { TrustedAuditOperator } from "../../../src/modules/audit/index.js";
 import type { AvailabilityInterval } from "../../../src/modules/context/index.js";
 import { type AgentIdentity, createAgentIdentity } from "../../../src/modules/identity/index.js";
@@ -200,7 +204,7 @@ describe("local availability node", () => {
     ).toEqual({ outcome: "unavailable" });
     expect(counted.reads()).toBe(before);
     expect(eventsOf(allowed).at(-1)?.outcome).toBe("unavailable");
-    expect(node.releaseByRequestId("missing", true)).toBe(false);
+    expect(await node.releaseByRequestId("missing", true)).toBe(false);
   });
 
   it("delivers an approved ASK once and keeps the approval id internal", async () => {
@@ -209,13 +213,13 @@ describe("local availability node", () => {
     await allowFacts(node, "ASK");
     expect(await node.handle(principal, request())).toEqual({ outcome: "unavailable" });
     expect(counted.reads()).toBe(0);
-    const pending = node.approvals.findByRequestId("req-1");
+    const pending = await node.approvals.findByRequestId("req-1");
     expect(pending?.status).toBe("pending");
-    expect(node.approvals.approve(approvalSource, pending?.id).ok).toBe(true);
+    expect((await node.approvals.approve(approvalSource, pending?.id)).ok).toBe(true);
     const released = await node.handle(principal, request());
     expect(released).toEqual({ result: true });
     expect(counted.reads()).toBe(1);
-    const spent = node.approvals.findByRequestId("req-1");
+    const spent = await node.approvals.findByRequestId("req-1");
     expect(spent?.status).toBe("released");
     expect(spent?.id.startsWith("pan_approval_")).toBe(true);
     expect(await node.handle(principal, request())).toEqual({ outcome: "unavailable" });
@@ -236,14 +240,14 @@ describe("local availability node", () => {
     expect(await node.handle(principal, request("req-dup", otherEnd))).toEqual({
       outcome: "unavailable",
     });
-    expect(node.approvals.findByRequestId("req-dup")?.end).toBe(END);
+    expect((await node.approvals.findByRequestId("req-dup"))?.end).toBe(END);
     expect(counted.reads()).toBe(0);
 
     const approved = nodeWith(counted.context);
     const granted = await allowFacts(approved, "ASK");
     await approved.handle(principal, request("req-revoke"));
-    const row = approved.approvals.findByRequestId("req-revoke");
-    expect(approved.approvals.approve(approvalSource, row?.id).ok).toBe(true);
+    const row = await approved.approvals.findByRequestId("req-revoke");
+    expect((await approved.approvals.approve(approvalSource, row?.id)).ok).toBe(true);
     expect(
       (
         await approved.permissions.revoke(permissionSource, {
@@ -262,7 +266,7 @@ describe("local availability node", () => {
       outcome: "unavailable",
     });
     expect(counted.reads()).toBe(before);
-    expect(approved.approvals.findByRequestId("req-revoke")?.status).toBe("invalidated");
+    expect((await approved.approvals.findByRequestId("req-revoke"))?.status).toBe("invalidated");
     expect(permission.id).not.toBe(granted.id);
   });
 
@@ -285,18 +289,18 @@ describe("local availability node", () => {
       findAgent: async (id) => (open ? (agents.get(String(id)) ?? null) : null),
     });
     await allowFacts(node, "ASK");
-    const row = node.approvals.findByRequestId("req-1");
+    const row = await node.approvals.findByRequestId("req-1");
     expect(row).toBeNull();
     await node.handle(principal, request("req-race"));
-    const pending = node.approvals.findByRequestId("req-race");
-    expect(node.approvals.approve(approvalSource, pending?.id).ok).toBe(true);
+    const pending = await node.approvals.findByRequestId("req-race");
+    expect((await node.approvals.approve(approvalSource, pending?.id)).ok).toBe(true);
     const response = await node.handle(principal, request("req-race"));
     expect(response).toEqual({ outcome: "unavailable" });
     expect(eventsOf(node).at(-1)).toMatchObject({
       category: "revocation",
       outcome: "invalidated",
     });
-    expect(node.approvals.findByRequestId("req-race")?.status).toBe("invalidated");
+    expect((await node.approvals.findByRequestId("req-race"))?.status).toBe("invalidated");
   });
 
   it("refuses context for an ASK that is pending, mismatched, expired, or on a bad clock", async () => {
@@ -314,8 +318,8 @@ describe("local availability node", () => {
     expect(await node.queryAvailability(input)).toBeNull();
     await node.handle(principal, request("req-direct"));
     expect(await node.queryAvailability(input)).toBeNull();
-    const pending = node.approvals.findByRequestId("req-direct");
-    expect(node.approvals.approve(approvalSource, pending?.id).ok).toBe(true);
+    const pending = await node.approvals.findByRequestId("req-direct");
+    expect((await node.approvals.approve(approvalSource, pending?.id)).ok).toBe(true);
     expect(await node.queryAvailability({ ...input, targetId: FROM })).toBeNull();
     expect(await node.queryAvailability({ ...input, requesterId: TO })).toBeNull();
     expect(await node.queryAvailability({ ...input, start: END })).toBeNull();
@@ -332,8 +336,8 @@ describe("local availability node", () => {
     });
     await allowFacts(badClock, "ASK");
     await badClock.handle(principal, request("req-direct"));
-    const badRow = badClock.approvals.findByRequestId("req-direct");
-    expect(badClock.approvals.approve(approvalSource, badRow?.id).ok).toBe(true);
+    const badRow = await badClock.approvals.findByRequestId("req-direct");
+    expect((await badClock.approvals.approve(approvalSource, badRow?.id)).ok).toBe(true);
     expect(
       await badClock.queryAvailability({
         requesterId: FROM,
@@ -349,7 +353,7 @@ describe("local availability node", () => {
     state.now = ORIGIN;
     expect(await node.queryAvailability(input)).toBe(true);
     expect(counted.reads()).toBe(1);
-    node.approvals.findByRequestId = () =>
+    node.approvals.findByRequestId = async () =>
       ({
         status: "approved",
         requestId: input.requestId,
@@ -466,5 +470,56 @@ describe("local availability node", () => {
     });
     expect(await node.relationships.readActive(FROM, TO)).toBe(false);
     expect(calls).toEqual([[FROM, TO]]);
+  });
+
+  it("does not finish a permission revoke until approval invalidation settles", async () => {
+    const memory = new InMemoryApprovalStore();
+    let releaseValues: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseValues = resolve;
+    });
+    let valuesStarted = false;
+    const node = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM), agent(TO)],
+      approvalStore: {
+        findByRequestId: (requestId) => memory.findByRequestId(requestId),
+        findById: (id) => memory.findById(id),
+        insertPending: (record) => memory.insertPending(record),
+        replace: (record) => memory.replace(record),
+        values() {
+          valuesStarted = true;
+          return gate.then(() => memory.values());
+        },
+      },
+    });
+    const granted = await allowFacts(node, "ASK");
+    expect(await node.handle(principal, request("req-invalidate"))).toEqual({
+      outcome: "unavailable",
+    });
+    let settled = false;
+    const pending = node.permissions
+      .revoke(permissionSource, {
+        contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+        action: "revoke",
+        correlationId: "corr-revoke",
+        fromAgentId: FROM,
+        toAgentId: TO,
+        effect: "ASK",
+        permissionId: granted.id,
+      })
+      .then((result) => {
+        settled = true;
+        return result;
+      });
+    // Revoke awaits invalidateUnreleased. A dropped promise would settle on microtasks.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(valuesStarted).toBe(true);
+    expect(settled).toBe(false);
+    releaseValues();
+    expect((await pending).ok).toBe(true);
+    expect((await node.approvals.findByRequestId("req-invalidate"))?.status).toBe("invalidated");
   });
 });

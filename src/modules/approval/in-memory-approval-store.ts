@@ -20,7 +20,7 @@ export interface ApprovalStore {
   findById(id: unknown): unknown;
   insertPending(record: unknown): unknown;
   replace(record: unknown): unknown;
-  values(): readonly unknown[];
+  values(): readonly unknown[] | Promise<readonly unknown[]>;
 }
 
 /**

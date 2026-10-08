@@ -52,7 +52,7 @@ export class ApprovalService {
     this.#store = dependencies.store;
   }
 
-  createAsk(input: unknown): Result<ApprovalRecord, ApprovalError> {
+  async createAsk(input: unknown): Promise<Result<ApprovalRecord, ApprovalError>> {
     try {
       const binding = readApprovalBinding(input);
       if (binding === null) {
@@ -69,7 +69,7 @@ export class ApprovalService {
       if (created === null) {
         return dependency();
       }
-      const stored = this.#store.insertPending(created);
+      const stored = await this.#store.insertPending(created);
       if (isApproval(stored)) {
         return success(stored);
       }
@@ -85,14 +85,14 @@ export class ApprovalService {
   approve(
     source: TrustedApprovalSource,
     approvalId: unknown,
-  ): Result<ApprovalRecord, ApprovalError> {
+  ): Promise<Result<ApprovalRecord, ApprovalError>> {
     return this.#decide("approved", source, approvalId);
   }
 
   reject(
     source: TrustedApprovalSource,
     approvalId: unknown,
-  ): Result<ApprovalRecord, ApprovalError> {
+  ): Promise<Result<ApprovalRecord, ApprovalError>> {
     return this.#decide("rejected", source, approvalId);
   }
 
@@ -100,12 +100,12 @@ export class ApprovalService {
    * Single spend. True only for one unexpired approved row whose current
    * relationshipActive is exactly true. A later call returns false.
    */
-  release(approvalId: unknown, relationshipActive: unknown): boolean {
+  async release(approvalId: unknown, relationshipActive: unknown): Promise<boolean> {
     try {
       if (!isApprovalId(approvalId)) {
         return false;
       }
-      const current = this.#stored(this.#store.findById(approvalId));
+      const current = this.#stored(await this.#store.findById(approvalId));
       if (current === "missing" || current === "corrupt" || current.status !== "approved") {
         return false;
       }
@@ -118,13 +118,13 @@ export class ApprovalService {
         return false;
       }
       if (relationshipActive === false) {
-        this.#store.replace(withApprovalStatus(current, "invalidated"));
+        await this.#store.replace(withApprovalStatus(current, "invalidated"));
         return false;
       }
       if (relationshipActive !== true) {
         return false;
       }
-      const saved = this.#store.replace(withApprovalStatus(current, "released"));
+      const saved = await this.#store.replace(withApprovalStatus(current, "released"));
       return isApproval(saved) && saved.status === "released" && saved.id === current.id;
     } catch {
       return false;
@@ -132,13 +132,13 @@ export class ApprovalService {
   }
 
   /** Pending and approved rows for this ordered pair only. Released rows stay released. */
-  invalidateUnreleased(from: unknown, to: unknown): void {
+  async invalidateUnreleased(from: unknown, to: unknown): Promise<void> {
     try {
       const binding = orderedPair(from, to);
       if (binding === null) {
         return;
       }
-      for (const value of this.#store.values()) {
+      for (const value of await this.#store.values()) {
         if (
           !isApproval(value) ||
           value.fromAgentId !== binding.fromAgentId ||
@@ -147,34 +147,34 @@ export class ApprovalService {
         ) {
           continue;
         }
-        this.#store.replace(withApprovalStatus(value, "invalidated"));
+        await this.#store.replace(withApprovalStatus(value, "invalidated"));
       }
     } catch {
       return;
     }
   }
 
-  findById(approvalId: unknown): ApprovalRecord | null {
+  async findById(approvalId: unknown): Promise<ApprovalRecord | null> {
     try {
-      return readable(this.#stored(this.#store.findById(approvalId)));
+      return readable(this.#stored(await this.#store.findById(approvalId)));
     } catch {
       return null;
     }
   }
 
-  findByRequestId(requestId: unknown): ApprovalRecord | null {
+  async findByRequestId(requestId: unknown): Promise<ApprovalRecord | null> {
     try {
-      return readable(this.#stored(this.#store.findByRequestId(requestId)));
+      return readable(this.#stored(await this.#store.findByRequestId(requestId)));
     } catch {
       return null;
     }
   }
 
-  #decide(
+  async #decide(
     decision: Extract<ApprovalStatus, "approved" | "rejected">,
     source: TrustedApprovalSource,
     approvalId: unknown,
-  ): Result<ApprovalRecord, ApprovalError> {
+  ): Promise<Result<ApprovalRecord, ApprovalError>> {
     try {
       if (readSourceKey(source) === null) {
         return invalid();
@@ -182,7 +182,7 @@ export class ApprovalService {
       if (!isApprovalId(approvalId)) {
         return invalid();
       }
-      const current = this.#stored(this.#store.findById(approvalId));
+      const current = this.#stored(await this.#store.findById(approvalId));
       if (current === "missing") {
         return notFound();
       }
@@ -195,7 +195,7 @@ export class ApprovalService {
         return dependency();
       }
       if (current.status === "pending" && now >= expiresAt) {
-        return this.#save(withApprovalStatus(current, "expired"));
+        return await this.#save(withApprovalStatus(current, "expired"));
       }
       if (current.status === decision) {
         return success(current);
@@ -203,14 +203,14 @@ export class ApprovalService {
       if (current.status !== "pending") {
         return conflict();
       }
-      return this.#save(withApprovalStatus(current, decision));
+      return await this.#save(withApprovalStatus(current, decision));
     } catch {
       return dependency();
     }
   }
 
-  #save(record: ApprovalRecord): Result<ApprovalRecord, ApprovalError> {
-    const saved = this.#store.replace(record);
+  async #save(record: ApprovalRecord): Promise<Result<ApprovalRecord, ApprovalError>> {
+    const saved = await this.#store.replace(record);
     if (isApproval(saved) && saved.id === record.id && saved.status === record.status) {
       return success(saved);
     }
