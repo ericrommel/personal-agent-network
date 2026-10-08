@@ -32,7 +32,8 @@ must equal the body `targetAgentId`.
 Any expired, future-outside-skew, duplicate, rebound, malformed, or
 recipient-mismatched envelope returns `{ outcome: "unavailable" }` at the
 ingress and does not call policy or context. The in-memory store is not
-restart-safe evidence. The durable store is a later PostgreSQL adapter.
+restart-safe evidence. `PostgresReplayStore` is the durable adapter. It stores
+only the message id. The node does not open a pool and does not construct it.
 
 ## Alternatives considered
 
@@ -43,10 +44,12 @@ restart-safe evidence. The durable store is a later PostgreSQL adapter.
 
 ## Consequences
 
-Node's built-in HTTPS stack terminates mutual TLS in a later slice. This ADR
-does not add a product UI, a general API, or a new authorization path. A
-duplicate `messageId` is denied even when the body `requestId` would have been
-idempotent inside approval.
+Node's built-in HTTPS stack terminates mutual TLS in a later slice.
+`PostgresReplayStore` remembers only the envelope message id. The node does not
+open a pool and does not construct that store. This ADR does not add a product
+UI, a general API, or a new authorization path. A duplicate `messageId` is
+denied even when the body `requestId` would have been idempotent inside
+approval.
 
 ## Security and privacy impact
 

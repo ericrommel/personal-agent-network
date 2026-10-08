@@ -1,6 +1,6 @@
 # Remote availability envelope
 
-Status: In Development
+Status: Merged as pull request #106. The listener and the PostgreSQL replay table were non-goals of that slice.
 Owner roles: Backend Engineer, Security & Privacy Engineer, Quality Engineer
 Last updated: 2026-10-08
 
