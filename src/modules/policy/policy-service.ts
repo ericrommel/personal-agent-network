@@ -16,8 +16,15 @@ export type PolicyPorts = Readonly<{
 
 const SNAPSHOT_KEYS = ["decision", "purpose", "scope"] as const;
 
+type NormalizedPermission = Readonly<{
+  decision: unknown;
+  purpose: unknown;
+  scope: unknown;
+}>;
+
 /**
- * D2: only a fresh requester -> target read counts. The reverse pair is never read.
+ * D1 and D2: relationship, advertisement, and permission are read twice.
+ * A change between the reads denies. The reverse relationship pair is never read.
  * D3: purpose is availability_check. Scope is the boolean disclosure name.
  */
 export const decideAuthorization = async (
@@ -31,18 +38,29 @@ export const decideAuthorization = async (
     if (purpose !== AVAILABILITY_PURPOSE_V1 || scope !== AVAILABILITY_SCOPE_V1) {
       return "DENY";
     }
-    const relationshipActive = await exactTrue(ports.readActive(requesterId, targetId));
-    const advertisementPresent = await exactTrue(
+    const firstRelationship = await exactTrue(ports.readActive(requesterId, targetId));
+    const firstAdvertisement = await exactTrue(
       ports.readAdvertised(targetId, AVAILABILITY_SKILL_VERSION_V1),
     );
-    const permission = await ports.readPermission(requesterId, targetId);
-    const stillActive = await exactTrue(ports.readActive(requesterId, targetId));
+    const firstPermission = normalizePermission(await ports.readPermission(requesterId, targetId));
+    const secondRelationship = await exactTrue(ports.readActive(requesterId, targetId));
+    const secondAdvertisement = await exactTrue(
+      ports.readAdvertised(targetId, AVAILABILITY_SKILL_VERSION_V1),
+    );
+    const secondPermission = normalizePermission(await ports.readPermission(requesterId, targetId));
+    if (
+      firstRelationship !== secondRelationship ||
+      firstAdvertisement !== secondAdvertisement ||
+      !samePermission(firstPermission, secondPermission)
+    ) {
+      return "DENY";
+    }
     return evaluatePolicy({
       contract: POLICY_FACTS_CONTRACT_V1,
-      relationshipActive: relationshipActive && stillActive,
-      advertisementPresent,
+      relationshipActive: secondRelationship,
+      advertisementPresent: secondAdvertisement,
       skillVersion: AVAILABILITY_SKILL_VERSION_V1,
-      permission: normalizePermission(permission),
+      permission: secondPermission,
       purpose: AVAILABILITY_PURPOSE_V1,
       scope: AVAILABILITY_SCOPE_V1,
       policyVersion: POLICY_VERSION_V1,
@@ -57,12 +75,20 @@ const exactTrue = async (value: Promise<unknown>): Promise<boolean> => {
   return resolved === true;
 };
 
-const normalizePermission = (input: unknown): { decision: "absent" } | unknown => {
+const normalizePermission = (input: unknown): NormalizedPermission => {
   if (!isExactData(input, SNAPSHOT_KEYS)) {
-    return { decision: "absent" };
+    return { decision: "absent", purpose: "absent", scope: "absent" };
   }
-  return input;
+  const record = input as Record<string, unknown>;
+  return {
+    decision: record.decision,
+    purpose: record.purpose,
+    scope: record.scope,
+  };
 };
+
+const samePermission = (left: NormalizedPermission, right: NormalizedPermission): boolean =>
+  left.decision === right.decision && left.purpose === right.purpose && left.scope === right.scope;
 
 const isExactData = (input: unknown, expected: readonly string[]): boolean => {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {

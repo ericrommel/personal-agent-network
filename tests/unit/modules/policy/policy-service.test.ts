@@ -13,9 +13,13 @@ const ports = (overrides?: {
   advertised?: unknown;
   permission?: unknown;
   activeReads?: unknown[];
+  advertisedReads?: unknown[];
+  permissionReads?: unknown[];
   onActive?: (from: unknown, to: unknown) => void;
 }) => {
   const reads = [...(overrides?.activeReads ?? [])];
+  const advertisedReads = [...(overrides?.advertisedReads ?? [])];
+  const permissionReads = [...(overrides?.permissionReads ?? [])];
   return {
     calls: [] as string[],
     async readActive(from: unknown, to: unknown) {
@@ -27,9 +31,15 @@ const ports = (overrides?: {
       return overrides?.active ?? true;
     },
     async readAdvertised() {
+      if (advertisedReads.length > 0) {
+        return advertisedReads.shift();
+      }
       return overrides?.advertised ?? true;
     },
     async readPermission() {
+      if (permissionReads.length > 0) {
+        return permissionReads.shift();
+      }
       if (overrides && "permission" in overrides) {
         return overrides.permission;
       }
@@ -63,6 +73,23 @@ describe("authorization policy service", () => {
     expect(await decideAuthorization(ports({ active: false }), REQUESTER, TARGET)).toBe("DENY");
     expect(
       await decideAuthorization(ports({ activeReads: [true, false] }), REQUESTER, TARGET),
+    ).toBe("DENY");
+    expect(
+      await decideAuthorization(
+        ports({ permissionReads: [snapshot("ALLOW"), null] }),
+        REQUESTER,
+        TARGET,
+      ),
+    ).toBe("DENY");
+    expect(
+      await decideAuthorization(ports({ advertisedReads: [true, false] }), REQUESTER, TARGET),
+    ).toBe("DENY");
+    expect(
+      await decideAuthorization(
+        ports({ permissionReads: [snapshot("ALLOW"), snapshot("ASK")] }),
+        REQUESTER,
+        TARGET,
+      ),
     ).toBe("DENY");
     expect(await decideAuthorization(ports({ advertised: "true" }), REQUESTER, TARGET)).toBe(
       "DENY",
