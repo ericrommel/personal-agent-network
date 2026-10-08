@@ -131,10 +131,11 @@ class StoredConflict extends Error {
 }
 
 /**
- * Async PostgreSQL adapter. It does not implement synchronous ApprovalStore.
- * ApprovalService stays synchronous until wiring can follow PR #62.
- * Read-then-write uses one transaction. A thrown query rolls back.
- * A unique request id stops two inserts from both committing.
+ * Async PostgreSQL adapter. ApprovalService awaits every store call, so this
+ * class is assignable to ApprovalStore. The node does not construct it.
+ * Injecting it is not restart-safe acceptance. Read-then-write uses one
+ * transaction. A thrown query rolls back. A unique request id stops two
+ * inserts from both committing.
  */
 export class PostgresApprovalStore {
   readonly #pool: SqlPool;

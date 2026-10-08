@@ -22,9 +22,9 @@ const notFound = (): SkillAdvertisementError =>
  * The table stores no kind, permission, profile, calendar, secret, or event. `kind` is
  * rebuilt on read. An advertisement grants nothing. A failed sink rolls back an insert
  * and does not undo a committed withdrawal. The method names differ from
- * SkillAdvertisementStorePort. Sharing those names would make this class
- * assignable to the port, and the synchronous service would commit a row
- * while reporting failure. SkillAdvertisementService is not wired to this class.
+ * SkillAdvertisementStorePort, so this class is not that port.
+ * SkillAdvertisementService awaits port results. The node does not construct
+ * this class.
  */
 export const SKILL_ADVERTISEMENT_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS skill_advertisement_records (
   pair_key text PRIMARY KEY,
