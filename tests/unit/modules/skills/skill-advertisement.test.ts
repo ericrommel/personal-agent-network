@@ -318,6 +318,68 @@ describe("skill advertisement service", () => {
     ).toEqual(code("SKILL_ADVERTISEMENT_DEPENDENCY_FAILED"));
   });
 
+  it("does not accept an advertisement until a store promise settles", async () => {
+    let releaseInsert: () => void = () => {};
+    const insertGate = new Promise<void>((resolve) => {
+      releaseInsert = resolve;
+    });
+    const memory = new InMemorySkillAdvertisementStore({ record() {} });
+    let insertStarted = false;
+    const service = new SkillAdvertisementService({
+      events: { record() {} },
+      store: {
+        insertAdvertised(record, event) {
+          insertStarted = true;
+          return insertGate.then(() => memory.insertAdvertised(record, event));
+        },
+        withdrawMatching(agentId, skillVersion, advertisementId, event) {
+          return memory.withdrawMatching(agentId, skillVersion, advertisementId, event);
+        },
+        findCurrent(agentId, skillVersion) {
+          return memory.findCurrent(agentId, skillVersion);
+        },
+      },
+      parties: { findAgent: async (id) => (id === AGENT ? agent(AGENT) : null) },
+    });
+    let settled = false;
+    const pending = service.advertise(source(), advertiseCommand()).then((result) => {
+      settled = true;
+      return result;
+    });
+    // A store promise that is not awaited is a failed shape on the next
+    // microtasks. A macrotask runs only after that chain.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(insertStarted).toBe(true);
+    expect(settled).toBe(false);
+    expect(memory.findCurrent(AGENT, VERSION)).toBeNull();
+    releaseInsert();
+    const created = unwrap(await pending);
+    expect(settled).toBe(true);
+    expect(created.status).toBe("advertised");
+    expect(await service.readAdvertised(AGENT, VERSION)).toBe(true);
+  });
+
+  it("fails closed when a store promise rejects", async () => {
+    const service = new SkillAdvertisementService({
+      events: { record() {} },
+      store: {
+        insertAdvertised: () => Promise.reject(new Error("insert down")),
+        withdrawMatching: () => Promise.reject(new Error("withdraw down")),
+        findCurrent: () => Promise.reject(new Error("find down")),
+      },
+      parties: { findAgent: async () => agent(AGENT) },
+    });
+    expect(await service.readAdvertised(AGENT, VERSION)).toBe(false);
+    expect(await service.advertise(source(), advertiseCommand())).toEqual(
+      code("SKILL_ADVERTISEMENT_DEPENDENCY_FAILED"),
+    );
+    expect(
+      await service.withdraw(source(), withdrawCommand(unwrap(createSkillAdvertisement(AGENT)).id)),
+    ).toEqual(code("SKILL_ADVERTISEMENT_DEPENDENCY_FAILED"));
+  });
+
   it("fails closed when a value throws or a rejected event cannot be recorded", async () => {
     const { service } = harness();
     const throwing = new Proxy(advertiseCommand(), {
