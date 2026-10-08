@@ -12,6 +12,12 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        "src/modules/permissions/**": {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         "src/modules/skills/**": {
           branches: 100,
           functions: 100,
@@ -37,6 +43,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/modules/identity/**": {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        "src/modules/approval/**": {
           branches: 100,
           functions: 100,
           lines: 100,
