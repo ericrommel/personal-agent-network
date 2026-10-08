@@ -51,16 +51,24 @@ describe.skipIf(databaseUrl === "")("durable minimized audit log", () => {
     }
     expect(read.value).toEqual([saved.value]);
 
-    const expired = await later.append(operator, command("fresh"));
-    expect(expired.ok).toBe(true);
+    const fresh = await later.append(operator, command("fresh"));
+    expect(fresh.ok).toBe(true);
     const afterAppend = await later.read(operator);
     expect(afterAppend.ok).toBe(true);
-    if (!afterAppend.ok || !expired.ok) {
+    if (!afterAppend.ok || !fresh.ok) {
       throw new Error("fixture");
     }
-    expect(afterAppend.value).toEqual([expired.value]);
+    expect(afterAppend.value).toEqual([saved.value, fresh.value]);
 
-    expect(await later.deleteAll(operator)).toEqual({ ok: true, value: true });
+    const justAfter = new PostgresAuditLog(pool, { nowMs: () => NOW + 1 });
+    const dropped = await justAfter.read(operator);
+    expect(dropped.ok).toBe(true);
+    if (!dropped.ok) {
+      throw new Error("fixture");
+    }
+    expect(dropped.value).toEqual([fresh.value]);
+
+    expect(await justAfter.deleteAll(operator)).toEqual({ ok: true, value: true });
     const empty = await new PostgresAuditLog(pool, { nowMs: () => NOW }).read(operator);
     expect(empty).toEqual({ ok: true, value: [] });
   });
