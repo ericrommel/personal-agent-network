@@ -705,22 +705,32 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       });
       await listener.stop();
       listener = await start();
-      const withdrawnResponse = await post(listener.port, "msg-withdrawn", "req-withdrawn");
+      const withdrawnResponse = await post(listener.port, "msg-ad-down", "req-ad-down");
       expect(withdrawnResponse.status).toBe(200);
       expect(publicObject(withdrawnResponse.body)).toEqual({ outcome: "unavailable" });
-      expect(await resources.node.approvals.findByRequestId("req-withdrawn")).toBeNull();
+      expect(await resources.node.approvals.findByRequestId("req-ad-down")).toBeNull();
       const withdrawnAudit = await resources.audit.read(operator);
       expect(withdrawnAudit.ok).toBe(true);
       if (!withdrawnAudit.ok) {
         throw new Error("fixture");
       }
       const withdrawnEvent = withdrawnAudit.value.find(
-        (event) => event?.requestId === "req-withdrawn",
+        (event) => event?.requestId === "req-ad-down",
       );
       expect(withdrawnEvent).toMatchObject({
+        kind: "audit-event",
         category: "decision",
         outcome: "deny",
+        requestId: "req-ad-down",
       });
+      expect(Object.keys(withdrawnEvent ?? {}).sort()).toEqual([
+        "category",
+        "id",
+        "kind",
+        "outcome",
+        "recordedAt",
+        "requestId",
+      ]);
       expect(JSON.stringify(withdrawnEvent)).not.toContain(START);
       expect(JSON.stringify(withdrawnEvent)).not.toContain(END);
       expect(JSON.stringify(withdrawnEvent)).not.toContain(BUSY_START);
