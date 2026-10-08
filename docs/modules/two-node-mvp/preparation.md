@@ -10,6 +10,28 @@ Checked on 2026-10-07 against Issue #13, Issue #15, and the Human Product Owner 
 
 Checked-in Relationships documents on this branch still describe the pre-approval draft. This note does not edit them. The Issue #7 comment is the approval record used here. Normative sentences in `docs/product/requirements.md` and `docs/product/acceptance-criteria.md` were not rewritten by that approval.
 
+## Later resolution, 2026-10-08
+
+The status check above is the 2026-10-07 record. D1 through D8 and PRQ-002 are resolved. Historical `TBD-PO` and "not approved" sentences later in this note stay as the record of what this plan considered. They are not open gates.
+
+Resolved since that check:
+
+- D7 / PRQ-009 chose two processes and a thin local CLI. An internal API is plumbing only. There is no product UI. The surface reservation below is closed.
+- D4 chose an explicit local owner action on the exact bound request, a 10-minute expiry, idempotent duplicate request ids, no notification transport, single-use release, invalidation of pending and computed-but-undelivered results, and no retraction of a delivered result. The owner-visible prompt has no raw context, profile, or model justification.
+- D5 chose a future-only half-open UTC interval, at most 7 days ahead and 4 hours long, boolean output, and the process-local caller and node budgets.
+- D6 chose local owner or operator access, a 30-day maximum retention, minimized export, deletion of retained records, and no remote audit query.
+- D8 chose standard HTTPS with mutual TLS, no custom cryptography, success `{ result: boolean }`, and denial `{ outcome: "unavailable" }`.
+- PO-REL-6: PR #60 merged the PostgreSQL relationship revoke. CI executed the integration test. The restart observation in the durability gate is still required before two-node acceptance.
+
+Still open for Issue #13:
+
+- Replay protection and handshake freshness. The numeric window is not chosen. That is not a new Reserved Product Decision.
+- A two-process run that loads the revoked relationship from PostgreSQL after restart.
+- Whole-module messaging acceptance. PR #55 merged only the in-process availability boundary.
+- Human Product Owner acceptance of the demonstration. Engineering Accepted is not claimed.
+
+Process-local slices for skills and policy, approval, audit, and availability are Engineering Accepted, with human acceptance pending. Preparation of the thin CLI may continue. An in-memory run is still not two-node acceptance.
+
 ## Question this note answers
 
 Which integration dependencies are hard, what end-to-end evidence will be required, and which demonstration choices stay reserved?
@@ -223,7 +245,7 @@ Limitations that must stay visible on the evidence package until a later accepte
 
 ## Reserved decisions
 
-These choices are not approved. The recommendation is QE's. Implementation of the surface waits for an explicit Human Product Owner decision and for Ready for Development on Issue #13.
+D7 resolved both choices below on 2026-10-08. The recommendation text remains the accepted choice. It is not an open reservation. Issue #13 acceptance is still not claimed.
 
 ### Two separate processes
 
