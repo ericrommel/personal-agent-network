@@ -17,7 +17,7 @@ Out of scope: harness code, a replay window, a product UI, Human Product Owner a
 
 ## Requirements and acceptance criteria
 
-The suite still owes AC-MSG-001. Component tests exercise AC-AUTH-001, AC-AUTH-002, AC-APR-001, AC-APR-002, AC-REV-001, AC-PRV-001, and AC-AUD-001 inside one process. PostgreSQL adapters and two-process probes cover relationship revoke and restore, permission invalidation, approval spend, expiry, a release one millisecond before expiry, advertisement withdraw and readvertise, a process-local budget a second process does not inherit, a different end that leaves the stored approval unspent, and an unparsable stored expiry that fails closed and leaves the SQL row approved. Those probes do not satisfy AC-MSG-001 and do not accept Issue #13. ADR-0004 still excludes an all-in-memory run.
+The suite still owes AC-MSG-001. Component tests exercise AC-AUTH-001, AC-AUTH-002, AC-APR-001, AC-APR-002, AC-REV-001, AC-PRV-001, and AC-AUD-001 inside one process. PostgreSQL adapters and two-process probes cover relationship revoke and restore, permission invalidation, approval spend, expiry, a release one millisecond before expiry, advertisement withdraw and readvertise, a process-local budget a second process does not inherit, a different end that leaves the stored approval unspent, and an unparsable stored expiry that fails closed and leaves the SQL row approved. This change adds a restarted clock one second after the interval start: the exact approved request is denied, context is not read, and the approval stays approved so a clock still before the start can spend it once. Those probes do not satisfy AC-MSG-001 and do not accept Issue #13. ADR-0004 still excludes an all-in-memory run.
 
 ## Context and affected components
 
@@ -67,6 +67,7 @@ No new Reserved Product Decision. The unset replay window blocks only the replay
 - 2026-10-08: Do not encode a replay number in an acceptance test from this plan.
 - 2026-10-08: Durable adapters and two-process probes are on main. The two-process restart evidence box stays open because it is the demonstration, not those probes.
 - 2026-10-08: PR #94 observed an unparsable stored expiry. The restarted read fails closed without a context read and leaves the SQL row approved. Recording that probe does not check the two-process restart evidence box.
+- 2026-10-08: A restarted clock one second after the interval start, and still before the ten-minute expiry, denies the exact approved request without a context read and leaves the approval approved. A later handle whose injected clock is still before the start can spend it once. The audit order follows `recorded_at`, so that earlier spend clock sorts before the later denial clock. This does not check the two-process restart evidence box.
 
 ## Handoff and completion evidence
 
