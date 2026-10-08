@@ -1,0 +1,261 @@
+import { afterAll, describe, expect, it } from "vitest";
+import {
+  createPgPool as createApprovalPool,
+  PostgresApprovalStore,
+  type SqlPool as ApprovalPool,
+} from "../../src/modules/approval/index.js";
+import {
+  type AuditEvent,
+  createPgPool as createAuditPool,
+  PostgresAuditLog,
+  type SqlPool as AuditPool,
+  type TrustedAuditOperator,
+} from "../../src/modules/audit/index.js";
+import type { AvailabilityInterval } from "../../src/modules/context/index.js";
+import { type AgentIdentity, createAgentIdentity } from "../../src/modules/identity/index.js";
+import {
+  AVAILABILITY_PURPOSE_V1,
+  AVAILABILITY_REQUEST_CONTRACT_V1,
+  AVAILABILITY_SCOPE_V1,
+} from "../../src/modules/messaging/index.js";
+import {
+  AwaitedSkillPermissionStore,
+  createPgPool as createPermissionPool,
+  PostgresSkillPermissionStore,
+  type SqlPool as PermissionPool,
+} from "../../src/modules/permissions/index.js";
+import {
+  createPgPool as createRelationshipPool,
+  PostgresRelationshipStore,
+  type SqlPool as RelationshipPool,
+} from "../../src/modules/relationships/index.js";
+import {
+  AVAILABILITY_SKILL_VERSION_V1,
+  AwaitedSkillAdvertisementStore,
+  createPgPool as createAdvertisementPool,
+  PostgresSkillAdvertisementStore,
+  type SqlPool as AdvertisementPool,
+} from "../../src/modules/skills/index.js";
+import { LocalAvailabilityNode } from "../../src/runtime/local-availability-node.js";
+
+const databaseUrl = process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "";
+const enabled = process.env.PAN_RESTART_PROBE === "1" && databaseUrl !== "";
+const FROM = "pan_agent_11111111-1111-4111-8111-111111111111";
+const TO = "pan_agent_22222222-2222-4222-a222-222222222222";
+const OTHER = "pan_agent_44444444-4444-4444-8444-444444444444";
+const OWNER = "pan_human_33333333-3333-4333-8333-333333333333";
+const ORIGIN = Date.parse("2026-10-08T12:00:00.000Z");
+const START = new Date(ORIGIN + 60_000).toISOString();
+const END = new Date(ORIGIN + 60_000 + 3_600_000).toISOString();
+const EXPIRES_AT = new Date(ORIGIN + 10 * 60 * 1000).toISOString();
+const CHILD_AT = ORIGIN + 2_000;
+const REQUEST_ID = "req-other-requester";
+const PARTY_FROM = `${FROM}>${TO}`;
+const PARTY_OTHER = `${OTHER}>${TO}`;
+const SKILL_PAIR = `${TO}>${AVAILABILITY_SKILL_VERSION_V1}`;
+const APPROVAL_ROW_SQL =
+  "SELECT from_agent_id, status, expires_at, end_at FROM approval_records WHERE request_id = $1";
+
+const operator = { kind: "trusted-audit-operator", key: "local-owner" } as TrustedAuditOperator;
+const silent = { record(): void {} };
+
+const agent = (id: string): AgentIdentity => {
+  const created = createAgentIdentity(id, OWNER, "active");
+  if (!created.ok) {
+    throw new Error("fixture");
+  }
+  return created.value;
+};
+
+const redact = (text: string): string => text.replace(/postgres:\/\/\S+/g, "postgres://redacted");
+
+const clockAt = (state: { now: number }) => ({
+  now: () => new Date(state.now).toISOString(),
+  nowMs: () => state.now,
+});
+
+const principal = {
+  schema: "pan.authenticated-agent-principal/v1",
+  kind: "authenticated-agent",
+  agentId: OTHER,
+  authenticatedAt: new Date(ORIGIN).toISOString(),
+};
+
+const request = {
+  contract: AVAILABILITY_REQUEST_CONTRACT_V1,
+  requestId: REQUEST_ID,
+  targetAgentId: TO,
+  purpose: AVAILABILITY_PURPOSE_V1,
+  scope: AVAILABILITY_SCOPE_V1,
+  start: START,
+  end: END,
+};
+
+describe.skipIf(!enabled)("fresh process denies another requester", () => {
+  let relationshipPool: RelationshipPool | undefined;
+  let approvalPool: ApprovalPool | undefined;
+  let auditPool: AuditPool | undefined;
+  let permissionPool: PermissionPool | undefined;
+  let advertisementPool: AdvertisementPool | undefined;
+
+  afterAll(async () => {
+    if (relationshipPool !== undefined) {
+      await relationshipPool.end();
+    }
+    if (approvalPool !== undefined) {
+      await approvalPool.end();
+    }
+    if (auditPool !== undefined) {
+      await auditPool.end();
+    }
+    if (permissionPool !== undefined) {
+      await permissionPool.end();
+    }
+    if (advertisementPool !== undefined) {
+      await advertisementPool.end();
+    }
+  });
+
+  it("denies another requester from the restarted rows", async () => {
+    try {
+      relationshipPool = createRelationshipPool(databaseUrl);
+      approvalPool = createApprovalPool(databaseUrl);
+      auditPool = createAuditPool(databaseUrl);
+      permissionPool = createPermissionPool(databaseUrl);
+      advertisementPool = createAdvertisementPool(databaseUrl);
+      const client = await relationshipPool.connect();
+      const relationships = await client.query(
+        "SELECT pair_key, status FROM relationship_records ORDER BY pair_key",
+        [],
+      );
+      const permissions = await client.query(
+        "SELECT pair_key, status, effect FROM skill_permission_records ORDER BY pair_key",
+        [],
+      );
+      const advertisement = await client.query(
+        "SELECT status FROM skill_advertisement_records WHERE pair_key = $1",
+        [SKILL_PAIR],
+      );
+      const approval = await client.query(APPROVAL_ROW_SQL, [REQUEST_ID]);
+      client.release();
+      expect(relationships.rows).toEqual([
+        { pair_key: PARTY_FROM, status: "active" },
+        { pair_key: PARTY_OTHER, status: "active" },
+      ]);
+      expect(permissions.rows).toEqual([
+        { pair_key: PARTY_FROM, status: "active", effect: "ASK" },
+        { pair_key: PARTY_OTHER, status: "active", effect: "ASK" },
+      ]);
+      expect(advertisement.rows).toEqual([{ status: "advertised" }]);
+      expect(approval.rows).toEqual([
+        { from_agent_id: FROM, status: "approved", expires_at: EXPIRES_AT, end_at: END },
+      ]);
+      expect(CHILD_AT).toBeLessThan(Date.parse(START));
+      expect(CHILD_AT).toBeLessThan(Date.parse(EXPIRES_AT));
+
+      const state = { now: CHILD_AT };
+      const clock = clockAt(state);
+      const prior = await new PostgresAuditLog(auditPool, clock).read(operator);
+      expect(prior.ok).toBe(true);
+      if (!prior.ok) {
+        throw new Error("fixture");
+      }
+      expect(prior.value).toEqual([
+        auditEvent(prior.value, 0, new Date(ORIGIN).toISOString(), "approval", "unavailable"),
+      ]);
+      expectMinimized(prior.value);
+
+      let reads = 0;
+      const context = {
+        get busyIntervals(): readonly AvailabilityInterval[] {
+          reads += 1;
+          return [];
+        },
+      };
+      const node = new LocalAvailabilityNode({
+        clock,
+        agents: [agent(FROM), agent(TO), agent(OTHER)],
+        context,
+        relationshipStore: new PostgresRelationshipStore(relationshipPool, silent),
+        approvalStore: new PostgresApprovalStore(approvalPool),
+        permissionStore: new AwaitedSkillPermissionStore(
+          new PostgresSkillPermissionStore(permissionPool, silent),
+        ),
+        advertisementStore: new AwaitedSkillAdvertisementStore(
+          new PostgresSkillAdvertisementStore(advertisementPool, silent),
+        ),
+        audit: new PostgresAuditLog(auditPool, clock),
+      });
+      const before = await node.approvals.findByRequestId(REQUEST_ID);
+      expect(before?.status).toBe("approved");
+      expect(before?.fromAgentId).toBe(FROM);
+      expect(before?.end).toBe(END);
+      expect(before?.expiresAt).toBe(EXPIRES_AT);
+      expect(await node.handle(principal, request)).toEqual({ outcome: "unavailable" });
+      expect(reads).toBe(0);
+      const afterRow = await node.approvals.findByRequestId(REQUEST_ID);
+      expect(afterRow?.status).toBe("approved");
+      expect(afterRow?.id).toBe(before?.id);
+      expect(afterRow?.fromAgentId).toBe(FROM);
+      expect(afterRow?.end).toBe(END);
+      expect(afterRow?.expiresAt).toBe(EXPIRES_AT);
+
+      const check = await relationshipPool.connect();
+      const stored = await check.query(APPROVAL_ROW_SQL, [REQUEST_ID]);
+      const storedPermissions = await check.query(
+        "SELECT pair_key, status, effect FROM skill_permission_records ORDER BY pair_key",
+        [],
+      );
+      check.release();
+      expect(stored.rows).toEqual([
+        { from_agent_id: FROM, status: "approved", expires_at: EXPIRES_AT, end_at: END },
+      ]);
+      expect(storedPermissions.rows).toEqual([
+        { pair_key: PARTY_FROM, status: "active", effect: "ASK" },
+        { pair_key: PARTY_OTHER, status: "active", effect: "ASK" },
+      ]);
+
+      const after = await new PostgresAuditLog(auditPool, clock).read(operator);
+      expect(after.ok).toBe(true);
+      if (!after.ok) {
+        throw new Error("fixture");
+      }
+      expect(after.value).toEqual([
+        auditEvent(after.value, 0, new Date(ORIGIN).toISOString(), "approval", "unavailable"),
+        auditEvent(after.value, 1, new Date(CHILD_AT).toISOString(), "approval", "unavailable"),
+      ]);
+      expectMinimized(after.value);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "probe failed";
+      throw new Error(redact(message));
+    }
+  });
+});
+
+const auditEvent = (
+  seen: readonly AuditEvent[],
+  index: number,
+  recordedAt: string,
+  category: "approval" | "disclosure",
+  outcome: "unavailable" | "released",
+) => ({
+  kind: "audit-event" as const,
+  id: seen[index]?.id,
+  recordedAt,
+  category,
+  requestId: REQUEST_ID,
+  outcome,
+});
+
+const expectMinimized = (value: unknown): void => {
+  const text = JSON.stringify(value);
+  expect(text).not.toContain(START);
+  expect(text).not.toContain(END);
+  expect(text).not.toContain("ASK");
+  expect(text).not.toContain("ALLOW");
+  expect(text).not.toContain("DENY");
+  expect(text).not.toContain("pan_approval_");
+  expect(text).not.toContain("availability_boolean");
+  expect(text).not.toContain('"result"');
+  expect(text).not.toContain(OTHER);
+};
