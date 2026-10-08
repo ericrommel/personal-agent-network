@@ -7,6 +7,7 @@ import {
   AVAILABILITY_NODE_BUDGET,
   type AvailabilityInterval,
   type AvailabilityQuery,
+  availabilityIntervalAccepted,
   AvailabilityService,
   type SimulatedPrivateContext,
 } from "../../../../src/modules/context/index.js";
@@ -454,5 +455,30 @@ describe("availability interval release", () => {
     expect(service.readAuthorizedBoolean("eric", window(ORIGIN_MS, ORIGIN_MS + HOUR_MS))).toBe(
       true,
     );
+  });
+});
+
+describe("availability interval gate", () => {
+  it("accepts one future window and rejects intervals outside the D5 rule", () => {
+    const accepted = window(ORIGIN_MS + 1_000, ORIGIN_MS + 1_000 + HOUR_MS);
+    expect(availabilityIntervalAccepted(accepted, ORIGIN_MS)).toBe(true);
+    expect(
+      availabilityIntervalAccepted(window(ORIGIN_MS - 1, ORIGIN_MS + HOUR_MS), ORIGIN_MS),
+    ).toBe(false);
+    expect(
+      availabilityIntervalAccepted(
+        window(ORIGIN_MS, ORIGIN_MS + AVAILABILITY_MAX_DURATION_MS + 1),
+        ORIGIN_MS,
+      ),
+    ).toBe(false);
+    expect(
+      availabilityIntervalAccepted(
+        window(ORIGIN_MS, ORIGIN_MS + AVAILABILITY_HORIZON_MS + 1),
+        ORIGIN_MS,
+      ),
+    ).toBe(false);
+    expect(availabilityIntervalAccepted({ start: "tomorrow" }, ORIGIN_MS)).toBe(false);
+    expect(availabilityIntervalAccepted(accepted, 1.5)).toBe(false);
+    expect(availabilityIntervalAccepted(accepted, Number.MAX_SAFE_INTEGER)).toBe(false);
   });
 });
