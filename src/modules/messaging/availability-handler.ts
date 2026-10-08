@@ -38,6 +38,7 @@ export type AvailabilityPorts = Readonly<{
   queryAvailability(input: {
     requesterId: string;
     targetId: string;
+    requestId: string;
     start: string;
     end: string;
   }): Promise<unknown>;
@@ -132,6 +133,7 @@ const readBoolean = async (
     const result = await ports.queryAvailability({
       requesterId,
       targetId: request.targetAgentId,
+      requestId: request.requestId,
       start: request.start,
       end: request.end,
     });

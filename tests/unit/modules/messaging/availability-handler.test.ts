@@ -64,6 +64,7 @@ const ports = (decision: unknown, result: unknown = true) => {
     async queryAvailability(_input: {
       requesterId: string;
       targetId: string;
+      requestId: string;
       start: string;
       end: string;
     }): Promise<unknown> {

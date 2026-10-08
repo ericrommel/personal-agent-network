@@ -437,4 +437,22 @@ describe("availability interval release", () => {
     });
     expect(nullPrototypeBusy.queryAvailability(allow(interval))).toBe(false);
   });
+
+  it("fails closed when the decision property throws", () => {
+    const service = new AvailabilityService({
+      context: { busyIntervals: [] },
+      clock: { nowMs: () => ORIGIN_MS },
+    });
+    const query = {
+      get decision(): string {
+        throw new Error("boom");
+      },
+      callerId: "eric",
+      interval: window(ORIGIN_MS, ORIGIN_MS + HOUR_MS),
+    };
+    expect(service.queryAvailability(query)).toBeNull();
+    expect(service.readAuthorizedBoolean("eric", window(ORIGIN_MS, ORIGIN_MS + HOUR_MS))).toBe(
+      true,
+    );
+  });
 });
