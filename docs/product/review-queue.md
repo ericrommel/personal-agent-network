@@ -38,10 +38,10 @@ As of 2026-10-08:
 
 - Audit, PRQ-008: Engineering Accepted in PR #56 (`f747afe91f021d7583636fc3150756a94185090e`). Ready for PO Acceptance. The log is process-local.
 - Approval, PRQ-006 and PRQ-007: Engineering Accepted in PR #58 (`35b18161bcb527ef4cc01f3af63aaeba045217aa`). Ready for PO Acceptance. The store is process-local.
-- Skill permission and policy service, PRQ-005, PRQ-010, and PRQ-003: on main in PR #54 (`81e902ad5a337e8943fdc8e4aef7bc36a12457f8`). Skills and Policy stays In Development until composition wires the approval port.
-- Availability, PRQ-004: PR #57 is open while CI reruns after the coverage-threshold merge with main. The reviewed context sources are unchanged.
-- Messaging boundary, PRQ-012 and PRQ-013: PR #55 is open while CI reruns after the coverage-threshold merge with main. The reviewed handler fix is unchanged.
-- Two-node, PRQ-009: acceptance still needs a verified PostgreSQL revoke (PO-REL-6). That is an engineering dependency, not a new Reserved Product Decision. The durable adapter is in progress.
+- Skill permission and policy service, PRQ-005, PRQ-010, and PRQ-003: on main in PR #54 (`81e902ad5a337e8943fdc8e4aef7bc36a12457f8`). The bounded process-local slice is Engineering Accepted. Wiring `UnreleasedApprovalPort` to `ApprovalService.invalidateUnreleased` is cross-module composition, not a missing permission rule.
+- Availability, PRQ-004: Engineering Accepted in PR #57 (`c3a4573c78e6fce0e9f6f66fa4a42570c07f8c82`). Ready for PO Acceptance. The service is process-local and is not a calendar provider.
+- Messaging boundary, PRQ-012 and PRQ-013: PR #55 is open. The handler sources match the reviewed fix `2c037216d54f6ace1545aa833f562e4b6bff745c`. Local verification of the integration head reports 100% coverage for `src/modules/messaging/**`. This slice is not whole-module Engineering Accepted. Replay protection and handshake freshness are a later slice. They are not a new Reserved Product Decision, and this slice is not remote ingress.
+- Two-node, PRQ-009: acceptance still needs a verified PostgreSQL revoke (PO-REL-6). PR #60 is open. CI on `d56c80858c3c972b888c851de4f931c4427a6d2b` ran the Postgres integration test. The branch is being updated onto current main. That dependency is not a new Reserved Product Decision.
 - No new Reserved Product Decision.
 
 ## PRQ-001 — Delegated autonomous delivery

@@ -266,8 +266,9 @@ These do not block engineering.
   Relationships slice was ratified on 2026-10-08. PR #46 merged as `2e04c6a`.
   That ratification does not make in-memory state restart-safe evidence.
 - PRQ-011 was ratified on 2026-10-08. The deny-by-default evaluator merged in
-  PR #47. Security found no blocking finding. The Skills module is not
-  Engineering Accepted as a whole.
+  PR #47. Security found no blocking finding. The later bounded permission
+  slice in PR #54 is Engineering Accepted separately. Composition with
+  approval remains cross-module work.
 - PRQ-014 was ratified on 2026-10-08. The process-local skill advertisement
   merged in PR #49 as `5d13fdb`. It grants nothing. Security found no blocking
   finding.
@@ -278,9 +279,15 @@ These do not block engineering.
 D1 through D8 are resolved. Sentences above that say a workstream stays blocked
 describe the queue before that resolution.
 
-Permission commands, the directed policy read, the fixed purpose, approval
-storage, audit storage, availability intervals, and the availability message
-boundary are in implementation. Audit and the process-local approval slice are
-Engineering Accepted, with Human Product Owner acceptance still pending.
+These process-local slices are Engineering Accepted, with Human Product Owner
+acceptance still pending: audit (PR #56), approval (PR #58), skill permission
+and policy (PR #54), and availability (PR #57). Wiring the approval port is
+cross-module composition, not a missing permission rule.
+
+The availability message boundary is PR #55. It is not whole-module messaging
+acceptance. Replay protection and handshake freshness remain a later slice.
+They are not a new Reserved Product Decision.
+
 Two-node acceptance still requires a verified durable relationship revoke.
-That dependency is PO-REL-6, not a new Reserved Product Decision.
+That dependency is PO-REL-6. PR #60 is the PostgreSQL adapter. It is not a
+new Reserved Product Decision.
