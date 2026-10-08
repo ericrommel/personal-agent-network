@@ -1,11 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer as createHttpsServer, type Server } from "node:https";
+import type { TrustedAuditOperator } from "../modules/audit/contracts.js";
 import { type AvailabilityResponse, unavailable } from "../modules/messaging/contracts.js";
 import {
   type AcceptedEnvelope,
   acceptRemoteEnvelope,
 } from "../modules/messaging/remote-envelope.js";
 import type { ReplayStore } from "../modules/messaging/replay-store.js";
+import type { AuditAppendPort } from "./local-availability-node.js";
 
 export const REMOTE_AVAILABILITY_PATH = "/pan/availability/v1";
 export const MAX_REMOTE_BODY_BYTES = 16 * 1024;
@@ -13,8 +15,9 @@ export const MAX_REMOTE_BODY_BYTES = 16 * 1024;
 /**
  * Minimal mutual-TLS ingress for one availability envelope.
  * The sender is the peer certificate URI SAN. Denial is the same public object
- * for every failure. This module does not listen from main or the CLI, and it
- * does not open a database pool or grant any local authority.
+ * for every failure. A denial before the handler appends one minimized audit
+ * event and does not copy the request. This module does not listen from main or
+ * the CLI, and it does not open a database pool or grant any local authority.
  */
 export type RemoteAvailabilityHandler = (
   principal: AcceptedEnvelope["principal"],
@@ -25,8 +28,21 @@ export type RemoteHttpsDependencies = Readonly<{
   localAgentId: string;
   nowMs: () => number;
   store: ReplayStore;
+  audit: AuditAppendPort;
   handle: RemoteAvailabilityHandler;
 }>;
+
+const ingressOperator = {
+  kind: "trusted-audit-operator",
+  key: "local-owner",
+} as TrustedAuditOperator;
+
+const INGRESS_DENIAL = {
+  kind: "audit-event",
+  category: "decision",
+  requestId: "unavailable",
+  outcome: "unavailable",
+};
 
 export type TlsMaterial = Readonly<{
   key: string | Buffer;
@@ -93,6 +109,7 @@ const readRemoteResult = async (
   request: IncomingMessage,
   dependencies: RemoteHttpsDependencies,
 ): Promise<RemoteRead> => {
+  let reachedHandle = false;
   try {
     if (request.method !== "POST" || request.url !== REMOTE_AVAILABILITY_PATH) {
       return denied();
@@ -118,6 +135,7 @@ const readRemoteResult = async (
     if (accepted === null) {
       return denied();
     }
+    reachedHandle = true;
     const handled = await dependencies.handle(accepted.principal, accepted.body);
     return Object.freeze({
       body: publicResponse(handled) ?? unavailable(),
@@ -125,6 +143,14 @@ const readRemoteResult = async (
     });
   } catch {
     return denied();
+  } finally {
+    if (!reachedHandle) {
+      try {
+        await dependencies.audit.append(ingressOperator, INGRESS_DENIAL);
+      } catch {
+        // The public object stays unavailable when the local audit append throws.
+      }
+    }
   }
 };
 

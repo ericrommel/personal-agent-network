@@ -109,6 +109,7 @@ describe("durable availability resources", () => {
     expect(resources.dependencies.localAgentId).toBe(TO);
     expect(resources.dependencies.nowMs()).toBe(ORIGIN);
     expect(resources.dependencies.store).toBe(resources.replay);
+    expect(resources.dependencies.audit).toBe(resources.audit);
     const from = agent(FROM);
     const to = agent(TO);
     expect(

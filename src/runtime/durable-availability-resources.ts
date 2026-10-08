@@ -144,6 +144,7 @@ export const openDurableAvailabilityResources = async (
         localAgentId: options.localAgentId,
         nowMs: () => options.clock.nowMs(),
         store: replay,
+        audit: durableAudit,
         handle: (principal, body) => node.handle(principal, body),
       },
       close: async () => {

@@ -6,6 +6,7 @@ import { Agent, request as httpsRequest } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { AuditEvent } from "../../../src/modules/audit/index.js";
 import {
   AVAILABILITY_ENVELOPE_CONTRACT_V1,
   AVAILABILITY_PURPOSE_V1,
@@ -112,14 +113,36 @@ class FakeResponse {
   }
 }
 
+const INGRESS_DENIAL = {
+  kind: "audit-event",
+  category: "decision",
+  requestId: "unavailable",
+  outcome: "unavailable",
+};
+
+const acceptedAudit = {
+  async append(): Promise<{ ok: true; value: AuditEvent }> {
+    return { ok: true, value: undefined as unknown as AuditEvent };
+  },
+};
+
+const recordingAudit = (events: unknown[]): RemoteHttpsDependencies["audit"] => ({
+  async append(_operator, command) {
+    events.push(command);
+    return { ok: true, value: undefined as unknown as AuditEvent };
+  },
+});
+
 const dependencies = (
   handle: RemoteHttpsDependencies["handle"],
   store = new InMemoryReplayStore(),
   nowMs: () => number = () => NOW,
+  audit: RemoteHttpsDependencies["audit"] = acceptedAudit,
 ): RemoteHttpsDependencies => ({
   localAgentId: TO,
   nowMs,
   store,
+  audit,
   handle,
 });
 
@@ -167,7 +190,8 @@ describe("mutual-TLS availability ingress", () => {
       seen.push(`${principal.agentId}:${principal.authenticatedAt}:${body.requestId}`);
       return { result: true };
     };
-    const deps = dependencies(handle, store);
+    const recorded: unknown[] = [];
+    const deps = dependencies(handle, store, () => NOW, recordingAudit(recorded));
     const first = await receive(incoming([Buffer.from(envelope())]), deps);
     expect(first.statusCode).toBe(200);
     expect(first.headers["content-type"]).toBe("application/json; charset=utf-8");
@@ -190,10 +214,12 @@ describe("mutual-TLS availability ingress", () => {
       deps,
     );
     expect(JSON.parse(typedResponse.body)).toEqual({ result: true });
+    expect(recorded).toEqual([]);
 
     const replay = await receive(incoming([Buffer.from(envelope())]), deps);
     expect(JSON.parse(replay.body)).toEqual({ outcome: "unavailable" });
     expect(seen).toHaveLength(3);
+    expect(recorded).toEqual([INGRESS_DENIAL]);
   });
 
   it("fails closed before the handler for transport and envelope defects", async () => {
@@ -202,7 +228,9 @@ describe("mutual-TLS availability ingress", () => {
       calls += 1;
       return { result: false };
     };
-    const deps = dependencies(handle);
+    const recorded: unknown[] = [];
+    const audit = recordingAudit(recorded);
+    const deps = dependencies(handle, new InMemoryReplayStore(), () => NOW, audit);
     const cases: IncomingMessage[] = [
       incoming([envelope()], { method: "GET" }),
       incoming([envelope()], { url: "/other" }),
@@ -244,11 +272,26 @@ describe("mutual-TLS availability ingress", () => {
 
     const clock = await receive(
       incoming([envelope("msg-clock")]),
-      dependencies(handle, new InMemoryReplayStore(), () => {
-        throw new Error("clock down");
-      }),
+      dependencies(
+        handle,
+        new InMemoryReplayStore(),
+        () => {
+          throw new Error("clock down");
+        },
+        audit,
+      ),
     );
     expect(JSON.parse(clock.body)).toEqual({ outcome: "unavailable" });
+    expect(calls).toBe(0);
+    expect(recorded).toEqual(Array.from({ length: 15 }, () => INGRESS_DENIAL));
+
+    const failing = dependencies(handle, new InMemoryReplayStore(), () => NOW, {
+      async append() {
+        throw new Error("audit down");
+      },
+    });
+    const auditDown = await receive(incoming([envelope()], { method: "GET" }), failing);
+    expect(JSON.parse(auditDown.body)).toEqual({ outcome: "unavailable" });
     expect(calls).toBe(0);
   });
 
@@ -270,11 +313,17 @@ describe("mutual-TLS availability ingress", () => {
       Object.assign(Object.create({ extra: true }), { result: true }),
       { [Symbol("leak")]: true },
     ];
+    const recorded: unknown[] = [];
     const responses: string[] = [];
     for (const body of bodies) {
       const response = await receive(
         incoming([envelope(`msg-${responses.length}`)]),
-        dependencies(async () => body as never),
+        dependencies(
+          async () => body as never,
+          new InMemoryReplayStore(),
+          () => NOW,
+          recordingAudit(recorded),
+        ),
       );
       responses.push(response.body);
     }
@@ -294,9 +343,15 @@ describe("mutual-TLS availability ingress", () => {
 
     const thrown = await receive(
       incoming([envelope("msg-throw")]),
-      dependencies(() => Promise.reject(new Error("handler down"))),
+      dependencies(
+        () => Promise.reject(new Error("handler down")),
+        new InMemoryReplayStore(),
+        () => NOW,
+        recordingAudit(recorded),
+      ),
     );
     expect(JSON.parse(thrown.body)).toEqual({ outcome: "unavailable" });
+    expect(recorded).toEqual([]);
   });
 
   it("destroys the response when the denial cannot be written", async () => {
