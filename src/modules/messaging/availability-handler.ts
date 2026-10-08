@@ -43,6 +43,8 @@ export type AvailabilityPorts = Readonly<{
   }): Promise<unknown>;
 }>;
 
+const APPROVAL_KEYS = ["status", "requestId", "fromAgentId", "toAgentId", "start", "end"] as const;
+
 export const handleAvailabilityRequest = async (
   principal: unknown,
   body: unknown,
@@ -56,23 +58,91 @@ export const handleAvailabilityRequest = async (
   if (request.purpose !== AVAILABILITY_PURPOSE_V1 || request.scope !== AVAILABILITY_SCOPE_V1) {
     return unavailable();
   }
-  let decision: unknown;
+  const decision = await readDecision(ports, requesterId, request);
+  if (decision !== "ALLOW" && decision !== "ASK") {
+    return unavailable();
+  }
+  if (decision === "ASK" && !(await approvedForRequest(ports, requesterId, request))) {
+    return unavailable();
+  }
+  const result = await readBoolean(ports, requesterId, request);
+  if (result === null) {
+    return unavailable();
+  }
+  const stillAuthorized = (await readDecision(ports, requesterId, request)) === decision;
+  if (!stillAuthorized) {
+    if (decision === "ASK") {
+      await invalidateUndelivered(ports, request.requestId);
+    }
+    return unavailable();
+  }
+  if (decision === "ALLOW") {
+    return released(result);
+  }
+  if (!(await approvedForRequest(ports, requesterId, request))) {
+    await invalidateUndelivered(ports, request.requestId);
+    return unavailable();
+  }
+  let relationshipActive = false;
   try {
-    decision = await ports.decide({
+    relationshipActive = (await ports.readActive(requesterId, request.targetAgentId)) === true;
+  } catch {
+    return unavailable();
+  }
+  if (!relationshipActive) {
+    await invalidateUndelivered(ports, request.requestId);
+    return unavailable();
+  }
+  try {
+    if ((await ports.release(request.requestId, true)) !== true) {
+      return unavailable();
+    }
+  } catch {
+    return unavailable();
+  }
+  return released(result);
+};
+
+const readDecision = async (
+  ports: AvailabilityPorts,
+  requesterId: string,
+  request: ParsedRequest,
+): Promise<unknown> => {
+  try {
+    return await ports.decide({
       requesterId,
       targetId: request.targetAgentId,
       purpose: request.purpose,
       scope: request.scope,
     });
   } catch {
-    return unavailable();
+    return "DENY";
   }
-  if (decision === "DENY" || (decision !== "ALLOW" && decision !== "ASK")) {
-    return unavailable();
+};
+
+const readBoolean = async (
+  ports: AvailabilityPorts,
+  requesterId: string,
+  request: ParsedRequest,
+): Promise<boolean | null> => {
+  try {
+    const result = await ports.queryAvailability({
+      requesterId,
+      targetId: request.targetAgentId,
+      start: request.start,
+      end: request.end,
+    });
+    return result === true || result === false ? result : null;
+  } catch {
+    return null;
   }
-  if (decision === "ALLOW") {
-    return disclose(ports, requesterId, request);
-  }
+};
+
+const approvedForRequest = async (
+  ports: AvailabilityPorts,
+  requesterId: string,
+  request: ParsedRequest,
+): Promise<boolean> => {
   try {
     const approval = await ports.openApproval({
       requestId: request.requestId,
@@ -81,36 +151,40 @@ export const handleAvailabilityRequest = async (
       start: request.start,
       end: request.end,
     });
-    if (!isExactStatus(approval, "approved")) {
-      return unavailable();
-    }
-    const relationshipActive =
-      (await ports.readActive(requesterId, request.targetAgentId)) === true;
-    if ((await ports.release(request.requestId, relationshipActive)) !== true) {
-      return unavailable();
-    }
+    return approvalMatches(approval, requesterId, request);
   } catch {
-    return unavailable();
+    return false;
   }
-  return disclose(ports, requesterId, request);
 };
 
-const disclose = async (
+const invalidateUndelivered = async (
   ports: AvailabilityPorts,
+  requestId: string,
+): Promise<void> => {
+  try {
+    await ports.release(requestId, false);
+  } catch {
+    return;
+  }
+};
+
+const approvalMatches = (
+  approval: unknown,
   requesterId: string,
   request: ParsedRequest,
-): Promise<AvailabilityResponse> => {
-  try {
-    const result = await ports.queryAvailability({
-      requesterId,
-      targetId: request.targetAgentId,
-      start: request.start,
-      end: request.end,
-    });
-    return result === true || result === false ? released(result) : unavailable();
-  } catch {
-    return unavailable();
+): boolean => {
+  if (!isExactData(approval, APPROVAL_KEYS)) {
+    return false;
   }
+  const record = approval as Record<string, unknown>;
+  return (
+    record.status === "approved" &&
+    record.requestId === request.requestId &&
+    record.fromAgentId === requesterId &&
+    record.toAgentId === request.targetAgentId &&
+    record.start === request.start &&
+    record.end === request.end
+  );
 };
 
 type ParsedRequest = Readonly<{
@@ -163,13 +237,6 @@ const readRequest = (body: unknown): ParsedRequest | null => {
     start: record.start,
     end: record.end,
   };
-};
-
-const isExactStatus = (value: unknown, status: string): boolean => {
-  if (!isExactData(value, ["status"])) {
-    return false;
-  }
-  return (value as { status?: unknown }).status === status;
 };
 
 const isToken = (value: unknown): value is string => typeof value === "string" && TOKEN.test(value);

@@ -21,6 +21,15 @@ const body = {
   end: "2026-10-08T02:00:00.000Z",
 };
 
+const approvedFor = (request: typeof body) => ({
+  status: "approved",
+  requestId: request.requestId,
+  fromAgentId: REQUESTER,
+  toAgentId: request.targetAgentId,
+  start: request.start,
+  end: request.end,
+});
+
 const ports = (decision: unknown, result: unknown = true) => {
   const calls: string[] = [];
   return {
@@ -46,11 +55,11 @@ const ports = (decision: unknown, result: unknown = true) => {
       end: string;
     }): Promise<unknown> {
       calls.push("approval");
-      return { status: "approved" };
+      return approvedFor(body);
     },
-    async release(_requestId: string, _relationshipActive: boolean): Promise<unknown> {
-      calls.push("release");
-      return true;
+    async release(_requestId: string, relationshipActive: boolean): Promise<unknown> {
+      calls.push(relationshipActive ? "release" : "invalidate");
+      return relationshipActive;
     },
     async queryAvailability(_input: {
       requesterId: string;
@@ -68,7 +77,7 @@ describe("availability message boundary", () => {
   it("returns only the boolean on ALLOW and does not use the body as the sender", async () => {
     const gate = ports("ALLOW", false);
     expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({ result: false });
-    expect(gate.calls).toEqual(["decide", "query"]);
+    expect(gate.calls).toEqual(["decide", "query", "decide"]);
     expect(
       principalFromUriSan("urn:pan:agent:not-an-agent", "2026-10-08T00:00:00.000Z"),
     ).toBeNull();
@@ -112,11 +121,14 @@ describe("availability message boundary", () => {
       return active;
     };
     expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({ result: true });
+    expect(gate.calls.indexOf("query")).toBeLessThan(gate.calls.indexOf("release"));
     active = false;
-    gate.release = async (_requestId: string, relationshipActive: boolean) => relationshipActive;
+    gate.calls.length = 0;
     expect(await handleAvailabilityRequest(principal, body, gate)).toEqual({
       outcome: "unavailable",
     });
+    expect(gate.calls).toContain("invalidate");
+    expect(gate.calls).not.toContain("release");
     expect(principalFromUriSan(7, "2026-10-08T00:00:00.000Z")).toBeNull();
     const wrongSchema = { ...principal, schema: "pan.other/v1" };
     expect(await handleAvailabilityRequest(wrongSchema, body, ports("ALLOW"))).toEqual({
@@ -156,6 +168,104 @@ describe("availability message boundary", () => {
     });
     const inherited = Object.assign(Object.create({ leaked: true }), body);
     expect(await handleAvailabilityRequest(principal, inherited, ports("ALLOW"))).toEqual({
+      outcome: "unavailable",
+    });
+  });
+
+  it("does not deliver a boolean when authorization changes after the private read", async () => {
+    const revoked = ports("ALLOW", true);
+    let decisions = 0;
+    revoked.decide = async () => {
+      revoked.calls.push("decide");
+      decisions += 1;
+      return decisions === 1 ? "ALLOW" : "DENY";
+    };
+    expect(await handleAvailabilityRequest(principal, body, revoked)).toEqual({
+      outcome: "unavailable",
+    });
+    expect(revoked.calls).toEqual(["decide", "query", "decide"]);
+
+    const askRevoked = ports("ASK", true);
+    let askDecisions = 0;
+    askRevoked.decide = async () => {
+      askRevoked.calls.push("decide");
+      askDecisions += 1;
+      return askDecisions === 1 ? "ASK" : "DENY";
+    };
+    expect(await handleAvailabilityRequest(principal, body, askRevoked)).toEqual({
+      outcome: "unavailable",
+    });
+    expect(askRevoked.calls).toContain("invalidate");
+    expect(askRevoked.calls).not.toContain("release");
+  });
+
+  it("does not treat a different approved window as consent for this request", async () => {
+    const mismatched = ports("ASK", true);
+    mismatched.openApproval = async () => {
+      mismatched.calls.push("approval");
+      return {
+        ...approvedFor(body),
+        end: "2026-10-08T03:00:00.000Z",
+      };
+    };
+    expect(await handleAvailabilityRequest(principal, body, mismatched)).toEqual({
+      outcome: "unavailable",
+    });
+    expect(mismatched.calls).toEqual(["decide", "approval"]);
+  });
+
+  it("withholds the boolean when the final relationship read or release fails", async () => {
+    const relationshipDown = ports("ASK", true);
+    relationshipDown.readActive = async () => {
+      relationshipDown.calls.push("read");
+      throw new Error("relationship down");
+    };
+    expect(await handleAvailabilityRequest(principal, body, relationshipDown)).toEqual({
+      outcome: "unavailable",
+    });
+
+    const spent = ports("ASK", true);
+    spent.release = async (_requestId: string, relationshipActive: boolean) => {
+      spent.calls.push(relationshipActive ? "release" : "invalidate");
+      return false;
+    };
+    expect(await handleAvailabilityRequest(principal, body, spent)).toEqual({
+      outcome: "unavailable",
+    });
+
+    const releaseDown = ports("ASK", true);
+    releaseDown.release = async () => {
+      throw new Error("release down");
+    };
+    expect(await handleAvailabilityRequest(principal, body, releaseDown)).toEqual({
+      outcome: "unavailable",
+    });
+
+    const withdrawn = ports("ASK", true);
+    let approvals = 0;
+    withdrawn.openApproval = async () => {
+      withdrawn.calls.push("approval");
+      approvals += 1;
+      if (approvals === 1) {
+        return approvedFor(body);
+      }
+      return { ...approvedFor(body), status: "invalidated" };
+    };
+    expect(await handleAvailabilityRequest(principal, body, withdrawn)).toEqual({
+      outcome: "unavailable",
+    });
+    expect(withdrawn.calls).toContain("invalidate");
+
+    const invalidateDown = ports("ASK", true);
+    let decisions = 0;
+    invalidateDown.decide = async () => {
+      decisions += 1;
+      return decisions === 1 ? "ASK" : "DENY";
+    };
+    invalidateDown.release = async () => {
+      throw new Error("invalidate down");
+    };
+    expect(await handleAvailabilityRequest(principal, body, invalidateDown)).toEqual({
       outcome: "unavailable",
     });
   });

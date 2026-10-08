@@ -10,8 +10,14 @@ export const principalFromUriSan = (value: unknown, authenticatedAt: string) => 
   if (typeof value !== "string" || !value.startsWith(AGENT_URI_SAN_PREFIX)) {
     return null;
   }
-  const parsed = parseAgentIdentityId(value.slice(AGENT_URI_SAN_PREFIX.length));
-  if (!parsed.ok || !Number.isFinite(Date.parse(authenticatedAt))) {
+  const agentText = value.slice(AGENT_URI_SAN_PREFIX.length);
+  const parsed = parseAgentIdentityId(agentText);
+  if (
+    !parsed.ok ||
+    parsed.value !== agentText ||
+    value !== `${AGENT_URI_SAN_PREFIX}${parsed.value}` ||
+    !Number.isFinite(Date.parse(authenticatedAt))
+  ) {
     return null;
   }
   return Object.freeze({
