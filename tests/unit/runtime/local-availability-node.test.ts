@@ -410,4 +410,26 @@ describe("local availability node", () => {
     expect(await node.handle(principal, request())).toEqual({ result: true });
     expect(eventsOf(node)).toEqual([]);
   });
+
+  it("reads an injected relationship store instead of process memory", async () => {
+    const calls: unknown[][] = [];
+    const node = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM), agent(TO)],
+      relationshipStore: {
+        insertActive() {
+          return null;
+        },
+        revokeMatching() {
+          return null;
+        },
+        findByDirectedPair(from, to) {
+          calls.push([from, to]);
+          return null;
+        },
+      },
+    });
+    expect(await node.relationships.readActive(FROM, TO)).toBe(false);
+    expect(calls).toEqual([[FROM, TO]]);
+  });
 });

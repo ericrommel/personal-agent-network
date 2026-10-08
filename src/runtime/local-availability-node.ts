@@ -35,7 +35,11 @@ import {
   type PolicyDecision,
   type PolicyPorts,
 } from "../modules/policy/index.js";
-import { InMemoryRelationshipStore, RelationshipService } from "../modules/relationships/index.js";
+import {
+  InMemoryRelationshipStore,
+  type RelationshipStorePort,
+  RelationshipService,
+} from "../modules/relationships/index.js";
 import {
   InMemorySkillAdvertisementStore,
   SkillAdvertisementService,
@@ -57,6 +61,7 @@ export type LocalAvailabilityNodeOptions = Readonly<{
   audit?: AuditAppendPort;
   context?: SimulatedPrivateContext;
   findAgent?: (id: unknown) => Promise<unknown>;
+  relationshipStore?: RelationshipStorePort;
 }>;
 
 type QueryInput = Readonly<{
@@ -76,7 +81,8 @@ const silentEvents = { record(): void {} };
 
 /**
  * Process-local wiring for one availability node.
- * Restart drops every in-memory store. This is not two-node acceptance evidence.
+ * The default stores drop on restart. An injected PostgreSQL relationship store
+ * can outlive the process. This option is not two-node acceptance evidence.
  */
 export class LocalAvailabilityNode {
   readonly auditLog: LocalAuditLog;
@@ -106,7 +112,7 @@ export class LocalAvailabilityNode {
     this.relationships = new RelationshipService({
       parties,
       events: silentEvents,
-      store: new InMemoryRelationshipStore(silentEvents),
+      store: options.relationshipStore ?? new InMemoryRelationshipStore(silentEvents),
     });
     this.advertisements = new SkillAdvertisementService({
       parties,
