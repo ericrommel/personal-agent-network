@@ -44,12 +44,15 @@ only the message id. The node does not open a pool and does not construct it.
 
 ## Consequences
 
-Node's built-in HTTPS stack terminates mutual TLS in a later slice.
-`PostgresReplayStore` remembers only the envelope message id. The node does not
-open a pool and does not construct that store. This ADR does not add a product
-UI, a general API, or a new authorization path. A duplicate `messageId` is
-denied even when the body `requestId` would have been idempotent inside
-approval.
+Node's built-in HTTPS server terminates mutual TLS on
+`POST /pan/availability/v1`. The peer URI SAN is the only sender. A body
+larger than 16 KiB is denied with the same public object as every other
+failure. The server does not listen from `src/main.ts` or the CLI.
+`PostgresReplayStore` remembers only the envelope message id. The node does
+not open a pool and does not construct that store. This ADR does not add a
+product UI, a general API, or a new authorization path. A duplicate
+`messageId` is denied even when the body `requestId` would have been
+idempotent inside approval.
 
 ## Security and privacy impact
 

@@ -6,7 +6,7 @@ Preparation note for Issue #9. It is not implementation authorization, not an AD
 
 ## Later resolution, 2026-10-08
 
-The Human Product Owner authorized a minimal HTTPS mutual-TLS ingress and named the MVP replay parameters on Issue #13. ADR-0007 records a 5-minute maximum window, 30 seconds of skew, and a single-use envelope `messageId`. The sender remains the certificate URI SAN. `PostgresReplayStore` is the durable message-id adapter. The node does not open a pool and does not construct that store. The sections below stay the earlier preparation record. Sentences there that leave the window unset are that record, not an open gate.
+The Human Product Owner authorized a minimal HTTPS mutual-TLS ingress and named the MVP replay parameters on Issue #13. ADR-0007 records a 5-minute maximum window, 30 seconds of skew, and a single-use envelope `messageId`. The sender remains the certificate URI SAN. The ingress is Node's built-in HTTPS server on `POST /pan/availability/v1`, with mutual TLS and a 16 KiB body cap. It does not listen from `src/main.ts` or the CLI. `PostgresReplayStore` is the durable message-id adapter. The node does not open a pool and does not construct that store. The sections below stay the earlier preparation record. Sentences there that leave the window unset are that record, not an open gate.
 
 Research that may exist only on Issue #9 is not a contract. This note does not adopt it.
 

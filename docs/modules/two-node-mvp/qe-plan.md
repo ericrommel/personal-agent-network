@@ -38,8 +38,8 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 
 ## Still blocked inside this strategy
 
-- No acceptance test may choose a replay or handshake-freshness window. The unset number is not a new Reserved Product Decision.
-- Injected PostgreSQL adapters are not restart-safe two-node acceptance. The node still does not open a pool, and there is no listening HTTPS server.
+- The replay window is the ADR-0007 pair: 5 minutes and 30 seconds. An acceptance test uses those parameters. It does not choose a new window.
+- Injected PostgreSQL adapters are not restart-safe two-node acceptance. The node still does not open a pool. The mutual-TLS server is a runtime boundary, not the two-process acceptance run.
 - Relationship revoke and advertisement withdraw do not invalidate unreleased approvals. Permission revoke does. This plan does not add the other calls.
 - The CLI adapter must not grow a grant or revoke command. Owner mutation stays on the existing local services.
 - External AI stays out of the suite.
