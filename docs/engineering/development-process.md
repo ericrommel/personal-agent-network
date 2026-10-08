@@ -358,6 +358,21 @@ unfinished, or the Human Product Owner has not replied.
 
 Do not end with a request for routine permission to continue.
 
+## Idle critical path
+
+A status report, the end of an agent turn, and a green CI check are not
+orchestration stop conditions. When an open autonomous-delivery pull request
+has green required CI and no Reserved Product Decision, missing Security or
+QE evidence is started in that cycle. Evidence that already covers the head
+is followed by the merge in that same cycle. Leaving the pull request idle is
+a process defect under trigger 25.
+
+On 2026-10-08 the loop stopped after review comments existed and required CI
+was green. The durable relationship pull request, the remaining module merges,
+and the module-issue updates were still unblocked. The stop was the end of an
+agent turn. It was not a Reserved Product Decision and it was not an external
+dependency.
+
 ## Traceability
 
 Every product behavior has a stable requirement ID and at least one acceptance
