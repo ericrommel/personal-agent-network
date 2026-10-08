@@ -76,6 +76,7 @@ describe("remote availability envelope", () => {
       new InMemoryReplayStore(),
     );
     expect(atSkew?.body.requestId).toBe("req-1");
+    expect(atSkew?.principal.authenticatedAt).toBe(instant(NOW));
     const expiredEdge = await accept(
       envelope({
         messageId: "msg-expired-edge",
@@ -84,6 +85,7 @@ describe("remote availability envelope", () => {
       }),
     );
     expect(expiredEdge?.body.requestId).toBe("req-1");
+    expect(expiredEdge?.principal.authenticatedAt).toBe(instant(NOW));
     const noFraction = envelope({
       messageId: "msg-no-fraction",
       issuedAt: "2026-10-08T12:00:00Z",
