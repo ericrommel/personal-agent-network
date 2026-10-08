@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalRecord, TrustedApprovalSource } from "../../../src/modules/approval/index.js";
 import type { TrustedAuditOperator } from "../../../src/modules/audit/index.js";
 import type { AvailabilityInterval } from "../../../src/modules/context/index.js";
-import { createAgentIdentity, type AgentIdentity } from "../../../src/modules/identity/index.js";
+import { type AgentIdentity, createAgentIdentity } from "../../../src/modules/identity/index.js";
 import { AVAILABILITY_REQUEST_CONTRACT_V1 } from "../../../src/modules/messaging/index.js";
 import {
   SKILL_PERMISSION_COMMAND_CONTRACT_V1,
@@ -17,11 +17,11 @@ import {
   SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
   type TrustedSkillAdvertisementSource,
 } from "../../../src/modules/skills/index.js";
-import { failure } from "../../../src/shared/domain/result.js";
 import {
   type LocalAvailabilityClock,
   LocalAvailabilityNode,
 } from "../../../src/runtime/local-availability-node.js";
+import { failure } from "../../../src/shared/domain/result.js";
 
 const FROM = "pan_agent_11111111-1111-4111-8111-111111111111";
 const TO = "pan_agent_22222222-2222-4222-a222-222222222222";
@@ -408,6 +408,41 @@ describe("local availability node", () => {
     });
     await allowFacts(node, "ALLOW");
     expect(await node.handle(principal, request())).toEqual({ result: true });
+    expect(eventsOf(node)).toEqual([]);
+  });
+
+  it("does not return until an async audit append settles", async () => {
+    let releaseAppend: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    let started = false;
+    const node = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM), agent(TO)],
+      audit: {
+        append: () => {
+          started = true;
+          return gate.then(() => failure({ code: "AUDIT_COMMAND_INVALID" }));
+        },
+      },
+    });
+    await allowFacts(node, "ALLOW");
+    let settled = false;
+    const pending = node.handle(principal, request("req-audit-wait")).then((result) => {
+      settled = true;
+      return result;
+    });
+    // Async handle frames settle on later microtasks even when append is not
+    // awaited. A macrotask runs only after that chain.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(started).toBe(true);
+    expect(settled).toBe(false);
+    releaseAppend();
+    expect(await pending).toEqual({ result: true });
+    expect(settled).toBe(true);
     expect(eventsOf(node)).toEqual([]);
   });
 
