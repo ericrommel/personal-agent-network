@@ -1,4 +1,8 @@
 export {
+  AwaitedSkillAdvertisementStore,
+  type DurableSkillAdvertisementCommands,
+} from "./awaited-skill-advertisement-store.js";
+export {
   AVAILABILITY_SKILL_VERSION_V1,
   SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
   SKILL_ADVERTISEMENT_EVENT_CONTRACT_V1,
