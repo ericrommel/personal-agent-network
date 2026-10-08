@@ -25,15 +25,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return prototype === Object.prototype || prototype === null;
 };
 
-const readGroup = (match: RegExpExecArray, index: number): number | null => {
-  const text = match[index];
-  if (text === undefined || !/^\d+$/.test(text)) {
-    return null;
-  }
-  const parsed = Number(text);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-};
-
 /** ISO-8601 UTC with second or millisecond precision. Offsets and bare dates are rejected. */
 const parseInstant = (value: unknown): number | null => {
   if (typeof value !== "string") {
@@ -43,36 +34,18 @@ const parseInstant = (value: unknown): number | null => {
   if (match === null) {
     return null;
   }
-  const year = readGroup(match, 1);
-  const month = readGroup(match, 2);
-  const day = readGroup(match, 3);
-  const hour = readGroup(match, 4);
-  const minute = readGroup(match, 5);
-  const second = readGroup(match, 6);
-  if (
-    year === null ||
-    month === null ||
-    day === null ||
-    hour === null ||
-    minute === null ||
-    second === null ||
-    month < 1 ||
-    month > 12 ||
-    hour > 23 ||
-    minute > 59 ||
-    second > 59
-  ) {
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
     return null;
   }
   const fraction = match[7];
   const millisecond = fraction === undefined ? 0 : Number(fraction);
-  if (!Number.isInteger(millisecond)) {
-    return null;
-  }
   const utc = Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
-  if (!Number.isSafeInteger(utc)) {
-    return null;
-  }
   const parsed = new Date(utc);
   if (
     parsed.getUTCFullYear() !== year ||

@@ -368,4 +368,73 @@ describe("availability interval release", () => {
     expect(nowCalls).toBe(0);
     dateNow.mockRestore();
   });
+
+  it("rejects impossible clock fields, a non-array calendar, and a caller id that is not a token", () => {
+    const { service } = tracked(["hidden"] as unknown as readonly AvailabilityInterval[]);
+    const interval = window(ORIGIN_MS, ORIGIN_MS + HOUR_MS);
+    const rejected = [
+      "2026-00-08T15:00:00.000Z",
+      "2026-13-08T15:00:00.000Z",
+      "2026-10-08T24:00:00.000Z",
+      "2026-10-08T15:60:00.000Z",
+      "2026-10-08T15:00:60.000Z",
+    ];
+    for (const start of rejected) {
+      expect(
+        service.queryAvailability({
+          decision: "ALLOW",
+          callerId: "eric",
+          interval: { start, end: instant(ORIGIN_MS + HOUR_MS) },
+        }),
+      ).toBeNull();
+    }
+    expect(service.queryAvailability({ decision: "ALLOW", callerId: "", interval })).toBeNull();
+    expect(
+      service.queryAvailability({
+        decision: "ALLOW",
+        callerId: "has space",
+        interval,
+      }),
+    ).toBeNull();
+    expect(service.queryAvailability(allow(interval))).toBeNull();
+    expect(
+      service.queryAvailability({
+        decision: "ALLOW",
+        callerId: 1,
+        interval,
+      } as unknown as AvailabilityQuery),
+    ).toBeNull();
+
+    const classQuery = new (class {
+      decision = "ALLOW";
+      callerId = "eric";
+      interval = interval;
+    })();
+    expect(service.queryAvailability(classQuery)).toBeNull();
+
+    const missingClock = new AvailabilityService({
+      context: { busyIntervals: [] },
+      clock: {} as { nowMs(): number },
+    });
+    expect(missingClock.queryAvailability(allow(interval))).toBeNull();
+
+    const notAnArray = new AvailabilityService({
+      context: { busyIntervals: "hidden" as unknown as readonly AvailabilityInterval[] },
+      clock: { nowMs: () => ORIGIN_MS },
+    });
+    expect(notAnArray.queryAvailability(allow(interval))).toBeNull();
+
+    const nullPrototypeBusy = new AvailabilityService({
+      context: {
+        busyIntervals: [
+          Object.assign(Object.create(null) as AvailabilityInterval, {
+            start: instant(ORIGIN_MS),
+            end: instant(ORIGIN_MS + HOUR_MS),
+          }),
+        ],
+      },
+      clock: { nowMs: () => ORIGIN_MS },
+    });
+    expect(nullPrototypeBusy.queryAvailability(allow(interval))).toBe(false);
+  });
 });
