@@ -284,10 +284,11 @@ acceptance still pending: audit (PR #56), approval (PR #58), skill permission
 and policy (PR #54), and availability (PR #57). Wiring the approval port is
 cross-module composition, not a missing permission rule.
 
-The availability message boundary is PR #55. It is not whole-module messaging
-acceptance. Replay protection and handshake freshness remain a later slice.
-They are not a new Reserved Product Decision.
+The availability message boundary merged in PR #55. It is not whole-module
+messaging acceptance. Replay protection and handshake freshness remain a later
+slice. They are not a new Reserved Product Decision. The numeric window is
+not chosen.
 
-Two-node acceptance still requires a verified durable relationship revoke.
-That dependency is PO-REL-6. PR #60 is the PostgreSQL adapter. It is not a
-new Reserved Product Decision.
+The PostgreSQL relationship revoke merged in PR #60. Two-node acceptance still
+needs two processes, replay rejection, and restart evidence. That remaining
+work is not a new Reserved Product Decision.
