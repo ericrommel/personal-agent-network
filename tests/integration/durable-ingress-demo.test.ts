@@ -390,6 +390,24 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       ]);
       expect(JSON.stringify(allowEvent)).not.toContain(START);
       expect(JSON.stringify(allowEvent)).not.toContain(END);
+      const ingressDenial = allowedAudit.value.find((event) => event?.requestId === "unavailable");
+      expect(ingressDenial).toMatchObject({
+        kind: "audit-event",
+        category: "decision",
+        outcome: "unavailable",
+        requestId: "unavailable",
+      });
+      expect(Object.keys(ingressDenial ?? {}).sort()).toEqual([
+        "category",
+        "id",
+        "kind",
+        "outcome",
+        "recordedAt",
+        "requestId",
+      ]);
+      expect(JSON.stringify(ingressDenial)).not.toContain(START);
+      expect(JSON.stringify(ingressDenial)).not.toContain(END);
+      expect(JSON.stringify(ingressDenial)).not.toContain("msg-allow");
 
       expect(
         (

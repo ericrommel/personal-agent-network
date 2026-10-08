@@ -31,7 +31,9 @@ must equal the body `targetAgentId`.
 
 Any expired, future-outside-skew, duplicate, rebound, malformed, or
 recipient-mismatched envelope returns `{ outcome: "unavailable" }` at the
-ingress and does not call policy or context. The in-memory store is not
+ingress and does not call policy or context. That denial appends one local
+audit event, `decision` / `unavailable`, with request id `unavailable`. The
+event does not copy the request, the interval, or a reason. The in-memory store is not
 restart-safe evidence. `PostgresReplayStore` is the durable adapter. It stores
 only the message id. The node does not open a pool and does not construct it.
 
