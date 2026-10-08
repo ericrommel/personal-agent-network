@@ -1,20 +1,20 @@
-import type { AgentIdentity } from "../modules/identity/index.js";
+import { parseUtcInstant } from "../modules/approval/domain/approval.js";
 import {
-  type ApprovalRecord,
-  ApprovalService,
   APPROVAL_POLICY_VERSION_V1,
   APPROVAL_PURPOSE_V1,
   APPROVAL_SCOPE_V1,
   APPROVAL_SKILL_VERSION_V1,
+  type ApprovalRecord,
+  ApprovalService,
   InMemoryApprovalStore,
 } from "../modules/approval/index.js";
-import { parseUtcInstant } from "../modules/approval/domain/approval.js";
 import {
   type AuditCategory,
   type AuditError,
   type AuditEvent,
   type AuditOutcome,
   LocalAuditLog,
+  type PostgresAuditLog,
   type TrustedAuditOperator,
 } from "../modules/audit/index.js";
 import {
@@ -22,9 +22,10 @@ import {
   AvailabilityService,
   type SimulatedPrivateContext,
 } from "../modules/context/index.js";
+import type { AgentIdentity } from "../modules/identity/index.js";
 import {
-  handleAvailabilityRequest,
   type AvailabilityResponse,
+  handleAvailabilityRequest,
 } from "../modules/messaging/index.js";
 import {
   InMemorySkillPermissionStore,
@@ -37,8 +38,8 @@ import {
 } from "../modules/policy/index.js";
 import {
   InMemoryRelationshipStore,
-  type RelationshipStorePort,
   RelationshipService,
+  type RelationshipStorePort,
 } from "../modules/relationships/index.js";
 import {
   InMemorySkillAdvertisementStore,
@@ -52,7 +53,10 @@ export type LocalAvailabilityClock = Readonly<{
 }>;
 
 export type AuditAppendPort = Readonly<{
-  append(operator: TrustedAuditOperator, command: unknown): Result<AuditEvent, AuditError>;
+  append(
+    operator: TrustedAuditOperator,
+    command: unknown,
+  ): Result<AuditEvent, AuditError> | Promise<Result<AuditEvent, AuditError>>;
 }>;
 
 export type LocalAvailabilityNodeOptions = Readonly<{
@@ -82,7 +86,8 @@ const silentEvents = { record(): void {} };
 /**
  * Process-local wiring for one availability node.
  * The default stores drop on restart. An injected PostgreSQL relationship store
- * can outlive the process. This option is not two-node acceptance evidence.
+ * or audit log can outlive the process. handle waits for the audit append.
+ * These options are not two-node acceptance evidence.
  */
 export class LocalAvailabilityNode {
   readonly auditLog: LocalAuditLog;
@@ -174,7 +179,7 @@ export class LocalAvailabilityNode {
       queryAvailability: (input) => this.queryAvailability(input),
     });
     const audited = auditFor(response, firstDecision, invalidated);
-    this.#audit.append(operator, {
+    await this.#audit.append(operator, {
       kind: "audit-event",
       category: audited.category,
       requestId: firstDecision === null ? "unavailable" : (body as { requestId: string }).requestId,
@@ -282,3 +287,8 @@ const auditFor = (
   }
   return { category: "decision", outcome: "unavailable" };
 };
+
+type _PostgresAuditMatchesPort = PostgresAuditLog extends AuditAppendPort ? true : never;
+
+const _postgresAuditMatchesPort: _PostgresAuditMatchesPort = true;
+void _postgresAuditMatchesPort;
