@@ -16,13 +16,13 @@ An all-in-memory run, including PR #62 and the argv adapter in PR #63, is a comp
 
 ALLOW. A current exact permission, a future half-open UTC interval inside the next 7 days and at most 4 hours, and policy `ALLOW`. The caller receives only `{ result: boolean }`. No approval row is created. The audit event is `disclosure` / `released` and does not contain the boolean, the interval, or the permission effect.
 
-ASK. Policy `ASK` creates one pending approval and does not read context. The local owner approves that exact request. One later request releases `{ result: boolean }` and spends `pan_approval_<uuid>`. The same request id does not read context again. A different end on the same request id conflicts and keeps the original end. Expiry is 10 minutes. There is no notification transport. The owner-visible record has no raw context, profile, or model justification.
+ASK. Policy `ASK` creates one pending approval and does not read context. The local owner approves that exact request. One later request releases `{ result: boolean }` and spends `pan_approval_<uuid>`. The same request id does not read context again. A different end on the same request id keeps the stored end and the caller still receives only `{ outcome: "unavailable" }`. There is no public conflict body. Expiry is 10 minutes. There is no notification transport. The owner-visible record has no raw context, profile, or model justification.
 
-DENY. A missing permission, an explicit deny, or an agent that is not in the receiver's directory returns `{ outcome: "unavailable" }`. Context is not read. The public body does not contain `ALLOW`, `ASK`, or `DENY`.
+DENY. A missing permission, an explicit deny, and a failed fresh receiver-local `readActive` — including a missing row, a revoked row, a thrown read, or an ineligible or unknown party — each return only `{ outcome: "unavailable" }`. Context is not read. The public body does not contain `ALLOW`, `ASK`, or `DENY`. Discovery membership is not an input to this decision.
 
 Revoke. Revoking the stored permission invalidates pending and approved-but-unreleased rows for that ordered pair. If the relationship disappears after the boolean is computed and before release, the result is not delivered and the audit outcome is `invalidated`. A result already delivered is not retracted.
 
-Malformed input. An extra body field, a bad principal, a past interval, a non-canonical expiry, or a throwing context read fails closed. The public denial stays `{ outcome: "unavailable" }`. Text in the body cannot grant a permission or change policy.
+Malformed input. An extra body field, a bad principal, a past or otherwise invalid public interval, or a throwing context read fails closed. The public denial stays `{ outcome: "unavailable" }`. Text in the body cannot grant a permission or change policy. A stored approval `expiresAt` that does not parse also fails closed before a context read. That check is not a rule for the public `start` and `end` fields. D5 still accepts a future half-open UTC interval inside the next 7 days and at most 4 hours, including second-precision instants.
 
 Replay and freshness. A stale, duplicated, or rebound network message must fail closed without a second disclosure. The numeric window is not chosen. This plan does not pick one. Do not encode a number in an acceptance test until a later engineering decision records it. That unset number is not a new Reserved Product Decision. Approval idempotency for one request id is the D4 rule and is not a network replay cache.
 
@@ -30,7 +30,7 @@ Restart. Revoke the relationship. Restart the receiver. The next decision and th
 
 ## What is already covered
 
-Process-local unit tests on main cover the relationship revoke, the permission and policy decision, the approval lifecycle, the availability budgets, the minimized audit log, and the in-process message boundary. PR #62 covers the composition of those pieces in one process. PR #63 covers the argv adapter only. None of those runs is Issue #13 acceptance.
+Process-local unit tests on main cover the relationship revoke, the permission and policy decision, the approval lifecycle, the availability budgets, the minimized audit log, and the in-process message boundary. PR #62 merged the composition of those pieces in one process. PR #63 is the argv adapter and is not this acceptance suite. None of those runs is Issue #13 acceptance.
 
 The Postgres relationship integration test runs in GitHub Actions. It does not restart a second process.
 
