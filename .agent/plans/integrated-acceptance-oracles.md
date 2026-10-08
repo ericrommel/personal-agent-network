@@ -60,4 +60,4 @@ The merged demonstration already proved two processes, mutual TLS, recipient bin
 
 ## Handoff and completion evidence
 
-PR #111 is merged. Security and Quality found no blocking defect. Quality job 113553162108 executed the demonstration. Human Product Owner acceptance stays unchecked.
+PR #111 is merged. Security and Quality found no blocking defect. Quality job 113553162108 executed the demonstration. The Human Product Owner accepted that demonstration on 2026-10-08. This plan did not grant the acceptance.

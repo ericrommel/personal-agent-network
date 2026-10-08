@@ -23,11 +23,9 @@ Resolved since that check:
 - D8 chose standard HTTPS with mutual TLS, no custom cryptography, success `{ result: boolean }`, and denial `{ outcome: "unavailable" }`.
 - PO-REL-6: PR #60 merged the PostgreSQL relationship revoke. PR #85 loads that revoked row in a second process. The probe is not two-node acceptance.
 
-Still open for Issue #13:
+The Human Product Owner accepted the demonstration on 2026-10-08: https://github.com/ericrommel/personal-agent-network/issues/14#issuecomment-6069966899. Engineering recorded that instruction. It did not grant the acceptance.
 
-- Human Product Owner acceptance of the demonstration. Engineering does not infer it and does not check that box.
-
-Engineering Accepted for the demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). ADR-0007 records the 5-minute validity window and 30-second skew. Whole-module messaging acceptance remains a separate Issue #9 record. `src/main.ts` and the CLI do not listen.
+Engineering Accepted for the demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). ADR-0007 records the 5-minute validity window and 30-second skew. Issue #9 records Engineering Accepted for the bounded messaging ingress separately. Human Product Owner acceptance of Issue #9 is not recorded. `src/main.ts` and the CLI do not listen.
 
 PR #85 is on main. A restarted process loads the revoked relationship, returns `{ outcome: "unavailable" }`, reads no context, and leaves the approved ASK approved. That probe is not Issue #13 acceptance.
 
