@@ -14,6 +14,7 @@ Statuses are `Proposed`, `Accepted`, `Superseded`, or `Rejected`. Accepted ADR c
 | [0004](0004-postgresql-persistence.md) | Accepted | PostgreSQL for transactional state when persistence begins |
 | [0005](0005-discovery-contract.md) | Accepted | Privacy-preserving Discovery contract |
 | [0006](0006-node-postgres-driver.md) | Accepted | `pg` for the first durable relationship store |
+| [0007](0007-mtls-replay-window.md) | Accepted | Five-minute mutual-TLS replay window and URI SAN sender |
 
 ## Template
 
