@@ -24,7 +24,7 @@ Revoke. Revoking the stored permission invalidates pending and approved-but-unre
 
 Malformed input. An extra body field, a bad principal, a past or otherwise invalid public interval, or a throwing context read fails closed. The public denial stays `{ outcome: "unavailable" }`. Text in the body cannot grant a permission or change policy. A stored approval `expiresAt` that does not parse also fails closed before a context read. That check is not a rule for the public `start` and `end` fields. D5 still accepts a future half-open UTC interval inside the next 7 days and at most 4 hours, including second-precision instants.
 
-Replay and freshness. A stale, duplicated, or rebound network message must fail closed without a second disclosure. The numeric window is not chosen. This plan does not pick one. Do not encode a number in an acceptance test until a later engineering decision records it. That unset number is not a new Reserved Product Decision. Approval idempotency for one request id is the D4 rule and is not a network replay cache.
+Replay and freshness. A stale, duplicated, or rebound network message must fail closed without a second disclosure. ADR-0007 records the window: `expiresAt` is at most 5 minutes after `issuedAt`, the receipt clock accepts `issuedAt` at most 30 seconds ahead, and it accepts `expiresAt` at most 30 seconds behind. The demonstration uses that pair. It does not choose a different window. That recorded pair is not a new Reserved Product Decision. Approval idempotency for one request id is the D4 rule and is not a network replay cache.
 
 Restart. A second process can load PostgreSQL rows for the relationship, the permission, the advertisement, the approval, and the audit. Relationship revoke and advertisement withdraw make the next decision deny, read no context, and leave an approved ASK approved. Permission revoke invalidates pending and approved-unreleased rows, and the second process sees that invalidated state. A delivered result is not retracted. These probes are not the two-node demonstration, and they do not accept Issue #13.
 
@@ -38,8 +38,8 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 
 ## Still blocked inside this strategy
 
-- The replay window is the ADR-0007 pair: 5 minutes and 30 seconds. An acceptance test uses those parameters. It does not choose a new window.
-- Injected PostgreSQL adapters are not restart-safe two-node acceptance. The node still does not open a pool. The mutual-TLS server is a runtime boundary, not the two-process acceptance run.
+- The replay window is the ADR-0007 pair: 5 minutes and 30 seconds. The demonstration uses those parameters. It does not choose a new window.
+- The node still does not open a pool. `openDurableAvailabilityResources` opens the existing pools only when that function is called. The two-process mutual-TLS demonstration is `tests/integration/durable-ingress-demo.test.ts`. Its explicit DENY runs while the relationship is active. Its relationship revoke keeps the stored effect at ALLOW and is loaded by a new listener process. A skipped local run is not live evidence. Do not check Engineering Accepted from that command alone.
 - Relationship revoke and advertisement withdraw do not invalidate unreleased approvals. Permission revoke does. This plan does not add the other calls.
 - The CLI adapter must not grow a grant or revoke command. Owner mutation stays on the existing local services.
 - External AI stays out of the suite.
@@ -48,4 +48,4 @@ Two-process probes on main observe one successful ASK spend, expiry denial, a re
 
 ## Commands that are not acceptance
 
-`npm.cmd run verify` is the component gate. The two-process probes run in that gate when the database URL is set. They are not the Issue #13 acceptance command. That command does not exist yet. When it does, the evidence record must show the command, both public responses, and a separate read of the receiver's audit that contains neither the boolean nor the calendar.
+`npm.cmd run verify` is the component gate. The two-process probes, including `tests/integration/durable-ingress-demo.test.ts`, run in that gate when the database URL is set. A skipped local run is not live evidence. The demonstration command does not check Engineering Accepted. Its evidence is the public responses and a separate read of the receiver's audit that contains neither the boolean nor the calendar.

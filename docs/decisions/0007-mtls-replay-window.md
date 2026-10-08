@@ -49,8 +49,10 @@ Node's built-in HTTPS server terminates mutual TLS on
 larger than 16 KiB is denied with the same public object as every other
 failure. The server does not listen from `src/main.ts` or the CLI.
 `PostgresReplayStore` remembers only the envelope message id. The node does
-not open a pool and does not construct that store. This ADR does not add a
-product UI, a general API, or a new authorization path. A duplicate
+not open a pool and does not construct that store. The demonstration
+composition root may open the existing pools when it is called.
+`LocalAvailabilityNode`, `src/main.ts`, and the CLI still do not. This ADR does
+not add a product UI, a general API, or a new authorization path. A duplicate
 `messageId` is denied even when the body `requestId` would have been
 idempotent inside approval.
 

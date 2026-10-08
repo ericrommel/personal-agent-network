@@ -48,6 +48,8 @@ As of 2026-10-08, at main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`:
 - Two-node, PRQ-009: preparation continues. Acceptance still needs two processes against PostgreSQL, replay rejection, and durable approval and audit reconstruction. The numeric replay window is not chosen. No new Reserved Product Decision blocks that preparation.
 - No new Reserved Product Decision.
 
+The snapshot above is main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`. ADR-0007 later records the remote replay window as a 5-minute maximum validity and 30 seconds of clock skew. That is an engineering decision under resolved D8. It is not a new Reserved Product Decision. Sentences in the snapshot that say the window is not chosen are not a current block. `src/main.ts` and the CLI still do not listen. Engineering Accepted on Issue #13 stays unchecked.
+
 ## PRQ-001 — Delegated autonomous delivery
 
 - Module: cross-cutting delivery process.
