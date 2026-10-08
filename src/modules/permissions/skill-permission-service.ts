@@ -26,6 +26,7 @@ import type {
   SkillPermissionEventSink,
   SkillPermissionStorePort,
   TrustedPermissionSource,
+  UnreleasedApprovalPort,
 } from "./ports.js";
 
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -43,6 +44,7 @@ export type SkillPermissionServiceDependencies = Readonly<{
   parties: PermissionPartyPort;
   events: SkillPermissionEventSink;
   store: SkillPermissionStorePort;
+  approvals: UnreleasedApprovalPort;
 }>;
 
 type ParsedCommand = Readonly<{
@@ -62,11 +64,13 @@ export class SkillPermissionService {
   readonly #parties: PermissionPartyPort;
   readonly #events: SkillPermissionEventSink;
   readonly #store: SkillPermissionStorePort;
+  readonly #approvals: UnreleasedApprovalPort;
 
   constructor(dependencies: SkillPermissionServiceDependencies) {
     this.#parties = dependencies.parties;
     this.#events = dependencies.events;
     this.#store = dependencies.store;
+    this.#approvals = dependencies.approvals;
   }
 
   async grant(
@@ -195,6 +199,8 @@ export class SkillPermissionService {
       stored.status === "revoked" &&
       stored.id === parsed.permissionId
     ) {
+      // A later ASK grant must not spend an approval that belonged to this revoked permission.
+      this.#approvals.invalidateUnreleased(stored.fromAgentId, stored.toAgentId);
       return success(stored);
     }
     if (isErrorCode(stored, "SKILL_PERMISSION_NOT_FOUND")) {

@@ -28,3 +28,8 @@ export interface SkillPermissionStorePort {
   ): unknown;
   findCurrent(fromAgentId: unknown, toAgentId: unknown): unknown;
 }
+
+/** Drops pending and approved approvals for one ordered pair. Released rows stay released. */
+export interface UnreleasedApprovalPort {
+  invalidateUnreleased(fromAgentId: string, toAgentId: string): void;
+}

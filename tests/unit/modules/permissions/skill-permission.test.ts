@@ -56,8 +56,13 @@ const revokeCommand = (permissionId: string) => ({
 
 const code = (name: string) => failure({ code: name });
 
+const silentApprovals = {
+  invalidateUnreleased(_from: string, _to: string) {},
+};
+
 const harness = (parties: AgentIdentity[] = [agent(FROM), agent(TO)]) => {
   const recorded: SkillPermissionEvent[] = [];
+  const invalidated: string[] = [];
   const sink: SkillPermissionEventSink = {
     record(event) {
       recorded.push(event);
@@ -67,9 +72,14 @@ const harness = (parties: AgentIdentity[] = [agent(FROM), agent(TO)]) => {
   const service = new SkillPermissionService({
     events: sink,
     store,
+    approvals: {
+      invalidateUnreleased(from, to) {
+        invalidated.push(`${from}>${to}`);
+      },
+    },
     parties: { findAgent: async (id) => parties.find((party) => party.id === id) ?? null },
   });
-  return { service, store, recorded };
+  return { service, store, recorded, invalidated };
 };
 
 describe("skill permission", () => {
@@ -106,9 +116,15 @@ describe("skill permission", () => {
       },
     };
     const store = new InMemorySkillPermissionStore(sink);
+    const invalidated: string[] = [];
     const local = new SkillPermissionService({
       events: sink,
       store,
+      approvals: {
+        invalidateUnreleased(from, to) {
+          invalidated.push(`${from}>${to}`);
+        },
+      },
       parties: {
         findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
       },
@@ -117,6 +133,7 @@ describe("skill permission", () => {
     const revoked = await local.revoke(source(), revokeCommand(created.id));
     expect(observed).toBe(true);
     expect(revoked.ok).toBe(true);
+    expect(invalidated).toEqual([`${FROM}>${TO}`]);
     expect(await local.readSnapshot(FROM, TO)).toBeNull();
     expect(await service.revoke(source(), revokeCommand(first.id))).toMatchObject({ ok: true });
     expect(await service.readSnapshot(FROM, TO)).toBeNull();
@@ -138,6 +155,7 @@ describe("skill permission", () => {
     const thrown = new SkillPermissionService({
       events: { record() {} },
       store: new InMemorySkillPermissionStore({ record() {} }),
+      approvals: silentApprovals,
       parties: {
         findAgent: async () => {
           throw new Error("down");
@@ -203,6 +221,7 @@ describe("skill permission", () => {
     const service = new SkillPermissionService({
       events: { record() {} },
       store: rolling,
+      approvals: silentApprovals,
       parties: {
         findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
       },
@@ -223,6 +242,7 @@ describe("skill permission", () => {
     expect(mainStore.findCurrent(FROM, TO)).toBeNull();
     const throwingRead = new SkillPermissionService({
       events: quiet,
+      approvals: silentApprovals,
       store: {
         insertActive: () => null,
         revokeMatching: () => ({ code: "SKILL_PERMISSION_DEPENDENCY_FAILED", extra: true }),
@@ -238,6 +258,7 @@ describe("skill permission", () => {
     );
     const emptyArray = new SkillPermissionService({
       events: quiet,
+      approvals: silentApprovals,
       store: {
         insertActive: () => [],
         revokeMatching: () => [],
@@ -296,6 +317,7 @@ describe("skill permission", () => {
     ).toEqual(code("SKILL_PERMISSION_COMMAND_INVALID"));
     const mismatched = new SkillPermissionService({
       events: quiet,
+      approvals: silentApprovals,
       store: {
         insertActive: () => null,
         revokeMatching: () => null,
@@ -309,6 +331,7 @@ describe("skill permission", () => {
     let reads = 0;
     const changed = new SkillPermissionService({
       events: quiet,
+      approvals: silentApprovals,
       store: {
         insertActive: () => null,
         revokeMatching: () => null,
@@ -323,6 +346,7 @@ describe("skill permission", () => {
     });
     expect(await changed.readSnapshot(FROM, TO)).toBeNull();
     const hostile = new SkillPermissionService({
+      approvals: silentApprovals,
       events: {
         record(event) {
           if (event.outcome === "rejected") {
@@ -336,5 +360,37 @@ describe("skill permission", () => {
       },
     });
     expect(await hostile.grant(source(), null)).toEqual(code("SKILL_PERMISSION_DEPENDENCY_FAILED"));
+  });
+
+  it("invalidates unreleased approvals only after the stored revoke", async () => {
+    const { service, invalidated } = harness();
+    const granted = unwrap(await service.grant(source(), grantCommand("ASK")));
+    const missing = "pan_skill_permission_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    expect(await service.revoke(source(), revokeCommand(missing))).toEqual(
+      code("SKILL_PERMISSION_NOT_FOUND"),
+    );
+    expect(invalidated).toEqual([]);
+    expect(unwrap(await service.revoke(source(), revokeCommand(granted.id))).status).toBe(
+      "revoked",
+    );
+    expect(invalidated).toEqual([`${FROM}>${TO}`]);
+
+    const failing = new SkillPermissionService({
+      events: { record() {} },
+      store: new InMemorySkillPermissionStore({ record() {} }),
+      approvals: {
+        invalidateUnreleased() {
+          throw new Error("approval down");
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    const second = unwrap(await failing.grant(source(), grantCommand("ALLOW")));
+    expect(await failing.revoke(source(), revokeCommand(second.id))).toEqual(
+      code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
+    );
+    expect(await failing.readSnapshot(FROM, TO)).toBeNull();
   });
 });

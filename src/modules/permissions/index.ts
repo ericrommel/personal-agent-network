@@ -25,6 +25,7 @@ export type {
   SkillPermissionEventSink,
   SkillPermissionStorePort,
   TrustedPermissionSource,
+  UnreleasedApprovalPort,
 } from "./ports.js";
 export {
   SkillPermissionService,
