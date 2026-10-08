@@ -92,11 +92,6 @@ const parseQueryInterval = (value: unknown, nowMs: number): ParsedInterval | nul
 const overlaps = (left: ParsedInterval, right: ParsedInterval): boolean =>
   left.startMs < right.endMs && right.startMs < left.endMs;
 
-const readCallerId = (query: Record<string, unknown>): string | null => {
-  const { callerId } = query;
-  return typeof callerId === "string" && CALLER_ID_PATTERN.test(callerId) ? callerId : null;
-};
-
 const readDecision = (query: Record<string, unknown>): AvailabilityDecision | null => {
   const { decision } = query;
   for (const candidate of AVAILABILITY_DECISIONS) {
@@ -143,20 +138,30 @@ export class AvailabilityService {
 
   queryAvailability(query: unknown): boolean | null {
     try {
-      if (!isRecord(query)) {
+      if (!isRecord(query) || readDecision(query) !== "ALLOW") {
         return null;
       }
-      const callerId = readCallerId(query);
-      const decision = readDecision(query);
-      if (callerId === null || decision !== "ALLOW") {
+      return this.readAuthorizedBoolean(query.callerId, query.interval);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Budgeted boolean read for a caller that this process has already authorized.
+   * ASK and DENY stay on `queryAvailability`, which returns before this method.
+   */
+  readAuthorizedBoolean(callerId: unknown, interval: unknown): boolean | null {
+    try {
+      if (typeof callerId !== "string" || !CALLER_ID_PATTERN.test(callerId)) {
         return null;
       }
       const nowMs = readNowMs(this.#clock);
       if (nowMs === null) {
         return null;
       }
-      const interval = parseQueryInterval(query.interval, nowMs);
-      if (interval === null) {
+      const parsed = parseQueryInterval(interval, nowMs);
+      if (parsed === null) {
         return null;
       }
       if (!this.#tryConsume(callerId, nowMs)) {
@@ -166,7 +171,7 @@ export class AvailabilityService {
       if (busy === null) {
         return null;
       }
-      return !busy.some((item) => overlaps(interval, item));
+      return !busy.some((item) => overlaps(parsed, item));
     } catch {
       return null;
     }
