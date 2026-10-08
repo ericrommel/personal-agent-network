@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { createAgentIdentity, type AgentIdentity } from "../../src/modules/identity/index.js";
+import { type AgentIdentity, createAgentIdentity } from "../../src/modules/identity/index.js";
 import {
   applyRelationshipSchema,
   createPgPool,
@@ -100,6 +100,7 @@ const runRestartProbe = async (pool: SqlPool): Promise<void> => {
       [
         join(root, "node_modules/vitest/vitest.mjs"),
         "run",
+        "--reporter=verbose",
         "tests/integration/relationship-restart-probe.test.ts",
       ],
       {
@@ -129,5 +130,6 @@ const runRestartProbe = async (pool: SqlPool): Promise<void> => {
   }
   expect(output.text).toContain("denies because the revoked row is present");
   expect(output.text).toMatch(/1 passed/);
+  expect(output.text).not.toMatch(/skipped/i);
   expect(output.text).not.toContain("postgres://");
 };

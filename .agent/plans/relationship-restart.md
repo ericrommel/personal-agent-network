@@ -45,8 +45,10 @@ database URL. A missing row is a failure, not a pass.
 2. Add the parent and child integration tests. Skip them when the database
    URL is empty. The parent and the existing relationship integration test
    share PostgreSQL advisory lock 81421001 so one truncate cannot delete the
-   other file's row. The parent treats a skipped child as a failure: the child
-   output must contain the probe name and `1 passed`.
+   other file's row. The parent treats a skipped child as a failure. The child runs with
+   Vitest's verbose reporter, and the parent requires the probe name,
+   `1 passed`, and no skipped count. The default reporter prints only the
+   file name, so the name check needs `--reporter=verbose`.
 
 ## Developer tests
 
