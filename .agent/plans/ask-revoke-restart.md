@@ -83,6 +83,9 @@ is not running locally.
 
 - 2026-10-08: A revoked snapshot is absent, so the later handle is DENY. The
   invalidation itself is the stored approval status, not an audit outcome.
+- 2026-10-08: Retry `23505` on `pg_type_typname_nsp_index`. Parallel
+  `CREATE TABLE IF NOT EXISTS` can lose that race. Any other error still
+  fails the probe.
 
 ## Handoff and completion evidence
 
