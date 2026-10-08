@@ -6,7 +6,7 @@ import {
   isSkillAdvertisementId,
   type SkillAdvertisement,
 } from "./domain/skill-advertisement.js";
-import type { SkillAdvertisementEventSink } from "./ports.js";
+import type { SkillAdvertisementEventSink, SkillAdvertisementStorePort } from "./ports.js";
 
 const dependencyFailure = (): SkillAdvertisementError =>
   Object.freeze({ code: "SKILL_ADVERTISEMENT_DEPENDENCY_FAILED" });
@@ -21,8 +21,10 @@ const notFound = (): SkillAdvertisementError =>
  * One row per agent and pinned skill version. A committed row survives process restart.
  * The table stores no kind, permission, profile, calendar, secret, or event. `kind` is
  * rebuilt on read. An advertisement grants nothing. A failed sink rolls back an insert
- * and does not undo a committed withdrawal. These async methods are not the synchronous
- * store port, and SkillAdvertisementService is not wired to this class.
+ * and does not undo a committed withdrawal. The method names differ from
+ * SkillAdvertisementStorePort. Sharing those names would make this class
+ * assignable to the port, and the synchronous service would commit a row
+ * while reporting failure. SkillAdvertisementService is not wired to this class.
  */
 export const SKILL_ADVERTISEMENT_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS skill_advertisement_records (
   pair_key text PRIMARY KEY,
@@ -100,7 +102,7 @@ export class PostgresSkillAdvertisementStore {
     this.#events = events;
   }
 
-  async insertAdvertised(
+  async insertDurableAdvertisement(
     record: SkillAdvertisement,
     event: SkillAdvertisementEvent,
   ): Promise<unknown> {
@@ -127,7 +129,7 @@ export class PostgresSkillAdvertisementStore {
     }
   }
 
-  async withdrawMatching(
+  async withdrawDurableAdvertisement(
     agentId: unknown,
     skillVersion: unknown,
     advertisementId: unknown,
@@ -158,7 +160,7 @@ export class PostgresSkillAdvertisementStore {
     return withdrawn;
   }
 
-  async findCurrent(agentId: unknown, skillVersion: unknown): Promise<unknown> {
+  async findDurableAdvertisement(agentId: unknown, skillVersion: unknown): Promise<unknown> {
     const pairKey = advertisementKey(agentId, skillVersion);
     if (pairKey === null) {
       return null;
@@ -253,3 +255,10 @@ const toSkillAdvertisement = (row: unknown): SkillAdvertisement | null => {
   });
   return isSkillAdvertisement(mapped) ? mapped : null;
 };
+
+type _NotSyncAdvertisementPort = PostgresSkillAdvertisementStore extends SkillAdvertisementStorePort
+  ? never
+  : true;
+
+const _notSyncAdvertisementPort: _NotSyncAdvertisementPort = true;
+void _notSyncAdvertisementPort;

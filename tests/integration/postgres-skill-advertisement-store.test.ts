@@ -55,22 +55,22 @@ describe.skipIf((process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "") === "")(
           throw new Error("sink down");
         },
       });
-      expect(await sinkDown.insertAdvertised(uncommitted, event("advertise"))).toEqual({
+      expect(await sinkDown.insertDurableAdvertisement(uncommitted, event("advertise"))).toEqual({
         code: "SKILL_ADVERTISEMENT_DEPENDENCY_FAILED",
       });
-      expect(await sinkDown.findCurrent(AGENT, VERSION)).toBeNull();
+      expect(await sinkDown.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
 
       const created = fixture();
       const first = new PostgresSkillAdvertisementStore(pool, { record() {} });
-      expect(await first.insertAdvertised(created, event("advertise"))).toMatchObject({
+      expect(await first.insertDurableAdvertisement(created, event("advertise"))).toMatchObject({
         id: created.id,
         status: "advertised",
       });
       const conflicting = fixture();
-      expect(await first.insertAdvertised(conflicting, event("advertise"))).toEqual({
+      expect(await first.insertDurableAdvertisement(conflicting, event("advertise"))).toEqual({
         code: "SKILL_ADVERTISEMENT_CONFLICT",
       });
-      expect(await first.findCurrent(AGENT, VERSION)).toMatchObject({
+      expect(await first.findDurableAdvertisement(AGENT, VERSION)).toMatchObject({
         id: created.id,
         status: "advertised",
       });
@@ -81,23 +81,32 @@ describe.skipIf((process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "") === "")(
         },
       });
       expect(
-        await withdrawing.withdrawMatching(AGENT, VERSION, created.id, event("withdraw")),
+        await withdrawing.withdrawDurableAdvertisement(
+          AGENT,
+          VERSION,
+          created.id,
+          event("withdraw"),
+        ),
       ).toMatchObject({ id: created.id, status: "withdrawn" });
 
       const restarted = new PostgresSkillAdvertisementStore(pool, { record() {} });
-      expect(await restarted.findCurrent(AGENT, VERSION)).toMatchObject({
+      expect(await restarted.findDurableAdvertisement(AGENT, VERSION)).toMatchObject({
         id: created.id,
         kind: "skill-advertisement",
         status: "withdrawn",
       });
 
       const replacement = fixture();
-      expect(await restarted.insertAdvertised(replacement, event("advertise"))).toMatchObject({
+      expect(
+        await restarted.insertDurableAdvertisement(replacement, event("advertise")),
+      ).toMatchObject({
         id: replacement.id,
         status: "advertised",
       });
       const secondConflict = fixture();
-      expect(await restarted.insertAdvertised(secondConflict, event("advertise"))).toEqual({
+      expect(
+        await restarted.insertDurableAdvertisement(secondConflict, event("advertise")),
+      ).toEqual({
         code: "SKILL_ADVERTISEMENT_CONFLICT",
       });
     });

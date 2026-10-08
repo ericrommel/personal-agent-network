@@ -34,8 +34,11 @@ restart-safe acceptance: the service is not wired to PostgreSQL.
 
 ## Requirements and acceptance criteria
 
-The async store matches the in-memory outcomes below. It does not declare
-`implements SkillAdvertisementStorePort`.
+The async store matches the in-memory outcomes below. Its methods are
+`insertDurableAdvertisement`, `withdrawDurableAdvertisement`, and
+`findDurableAdvertisement`. Those names are not the synchronous port names.
+A type assertion fails the build if the class becomes assignable to
+`SkillAdvertisementStorePort`.
 
 - An invalid record, or a status other than `advertised`, returns
   `{ code: "SKILL_ADVERTISEMENT_DEPENDENCY_FAILED" }` and does not query.

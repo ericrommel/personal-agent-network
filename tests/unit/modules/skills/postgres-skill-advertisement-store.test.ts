@@ -123,21 +123,26 @@ describe("PostgreSQL skill advertisement store", () => {
     const gate = scripted([]);
     const store = new PostgresSkillAdvertisementStore(gate.pool, { record() {} });
     const record = advertised();
-    const pending = store.insertAdvertised({ ...record, status: "withdrawn" }, event());
+    const pending = store.insertDurableAdvertisement({ ...record, status: "withdrawn" }, event());
     expect(pending).toBeInstanceOf(Promise);
     expect(await pending).toEqual(dependency);
     expect(
-      await store.insertAdvertised({ kind: "nope" } as unknown as SkillAdvertisement, event()),
+      await store.insertDurableAdvertisement(
+        { kind: "nope" } as unknown as SkillAdvertisement,
+        event(),
+      ),
     ).toEqual(dependency);
-    expect(await store.withdrawMatching(null, VERSION, record.id, event())).toEqual(notFoundCode);
-    expect(await store.withdrawMatching(AGENT, "pan.skill.other/v1", record.id, event())).toEqual(
+    expect(await store.withdrawDurableAdvertisement(null, VERSION, record.id, event())).toEqual(
       notFoundCode,
     );
-    expect(await store.withdrawMatching(AGENT, VERSION, "not-an-id", event())).toEqual(
+    expect(
+      await store.withdrawDurableAdvertisement(AGENT, "pan.skill.other/v1", record.id, event()),
+    ).toEqual(notFoundCode);
+    expect(await store.withdrawDurableAdvertisement(AGENT, VERSION, "not-an-id", event())).toEqual(
       notFoundCode,
     );
-    expect(await store.findCurrent(null, VERSION)).toBeNull();
-    expect(await store.findCurrent(AGENT, "pan.skill.other/v1")).toBeNull();
+    expect(await store.findDurableAdvertisement(null, VERSION)).toBeNull();
+    expect(await store.findDurableAdvertisement(AGENT, "pan.skill.other/v1")).toBeNull();
     expect(gate.queries).toEqual([]);
   });
 
@@ -154,7 +159,7 @@ describe("PostgreSQL skill advertisement store", () => {
       },
     });
 
-    expect(await store.insertAdvertised(record, happened)).toBe(record);
+    expect(await store.insertDurableAdvertisement(record, happened)).toBe(record);
     expect(recorded).toEqual([happened]);
     expect(seenAtSink).toEqual([
       "BEGIN",
@@ -184,14 +189,14 @@ describe("PostgreSQL skill advertisement store", () => {
         conflictSink += 1;
       },
     });
-    expect(await conflictStore.insertAdvertised(record, event())).toEqual(conflictCode);
+    expect(await conflictStore.insertDurableAdvertisement(record, event())).toEqual(conflictCode);
     expect(conflictSink).toBe(0);
     expect(conflicted.queries.at(-1)).toBe("ROLLBACK");
     expect(conflicted.queries).not.toContain("COMMIT");
 
     const nullCount = scripted([{ rowCount: null, rows: [] }]);
     const nullCountStore = new PostgresSkillAdvertisementStore(nullCount.pool, { record() {} });
-    expect(await nullCountStore.insertAdvertised(record, event())).toEqual(conflictCode);
+    expect(await nullCountStore.insertDurableAdvertisement(record, event())).toEqual(conflictCode);
     expect(nullCount.queries.at(-1)).toBe("ROLLBACK");
 
     const rolled = scripted([{ rowCount: 1, rows: [{ advertisement_id: record.id }] }]);
@@ -200,7 +205,7 @@ describe("PostgreSQL skill advertisement store", () => {
         throw new Error("sink down");
       },
     });
-    const rolledBack = await rollbackStore.insertAdvertised(record, event());
+    const rolledBack = await rollbackStore.insertDurableAdvertisement(record, event());
     expect(rolledBack).toEqual(dependency);
     expect(JSON.stringify(rolledBack)).not.toContain("sink down");
     expect(rolled.queries.at(-1)).toBe("ROLLBACK");
@@ -219,7 +224,7 @@ describe("PostgreSQL skill advertisement store", () => {
         recorded.push(value);
       },
     });
-    const saved = await store.withdrawMatching(AGENT, VERSION, record.id, happened);
+    const saved = await store.withdrawDurableAdvertisement(AGENT, VERSION, record.id, happened);
     expect(saved).toMatchObject({
       kind: "skill-advertisement",
       id: record.id,
@@ -239,7 +244,12 @@ describe("PostgreSQL skill advertisement store", () => {
         throw new Error("sink down");
       },
     });
-    const kept = await sinkStore.withdrawMatching(AGENT, VERSION, record.id, event("withdraw"));
+    const kept = await sinkStore.withdrawDurableAdvertisement(
+      AGENT,
+      VERSION,
+      record.id,
+      event("withdraw"),
+    );
     expect(kept).toMatchObject({ id: record.id, status: "withdrawn" });
     expect(sinkDown.queries).toContain("COMMIT");
     expect(sinkDown.queries).not.toContain("ROLLBACK");
@@ -251,41 +261,41 @@ describe("PostgreSQL skill advertisement store", () => {
         missingSink += 1;
       },
     });
-    expect(await missingStore.withdrawMatching(AGENT, VERSION, record.id, event())).toEqual(
-      notFoundCode,
-    );
+    expect(
+      await missingStore.withdrawDurableAdvertisement(AGENT, VERSION, record.id, event()),
+    ).toEqual(notFoundCode);
     expect(missingSink).toBe(0);
     expect(missing.queries.at(-1)).toBe("ROLLBACK");
 
     const other = advertised();
     const mismatched = scripted([{ rows: [{ ...storedRow(record), advertisement_id: other.id }] }]);
     const mismatchedStore = new PostgresSkillAdvertisementStore(mismatched.pool, { record() {} });
-    expect(await mismatchedStore.withdrawMatching(AGENT, VERSION, record.id, event())).toEqual(
-      notFoundCode,
-    );
+    expect(
+      await mismatchedStore.withdrawDurableAdvertisement(AGENT, VERSION, record.id, event()),
+    ).toEqual(notFoundCode);
     expect(mismatched.queries.at(-1)).toBe("ROLLBACK");
 
     const stillAdvertised = scripted([{ rows: [storedRow(record, "advertised")] }]);
     const stillAdvertisedStore = new PostgresSkillAdvertisementStore(stillAdvertised.pool, {
       record() {},
     });
-    expect(await stillAdvertisedStore.withdrawMatching(AGENT, VERSION, record.id, event())).toEqual(
-      notFoundCode,
-    );
+    expect(
+      await stillAdvertisedStore.withdrawDurableAdvertisement(AGENT, VERSION, record.id, event()),
+    ).toEqual(notFoundCode);
     expect(stillAdvertised.queries).not.toContain("COMMIT");
 
     const corrupt = scripted([{ rows: [{ advertisement_id: record.id, status: "withdrawn" }] }]);
     const corruptStore = new PostgresSkillAdvertisementStore(corrupt.pool, { record() {} });
-    expect(await corruptStore.withdrawMatching(AGENT, VERSION, record.id, event())).toEqual(
-      notFoundCode,
-    );
+    expect(
+      await corruptStore.withdrawDurableAdvertisement(AGENT, VERSION, record.id, event()),
+    ).toEqual(notFoundCode);
     expect(corrupt.queries.at(-1)).toBe("ROLLBACK");
 
     const broken = scripted([{ error: new Error("syntax error at skill_advertisement_records") }], {
       rollbackFails: true,
     });
     const brokenStore = new PostgresSkillAdvertisementStore(broken.pool, { record() {} });
-    const hidden = await brokenStore.insertAdvertised(record, event());
+    const hidden = await brokenStore.insertDurableAdvertisement(record, event());
     expect(hidden).toEqual(dependency);
     expect(JSON.stringify(hidden)).not.toContain("skill_advertisement_records");
     expect(broken.released()).toBe(1);
@@ -296,7 +306,7 @@ describe("PostgreSQL skill advertisement store", () => {
     const withdrawDownStore = new PostgresSkillAdvertisementStore(withdrawDown.pool, {
       record() {},
     });
-    const withdrawFailure = await withdrawDownStore.withdrawMatching(
+    const withdrawFailure = await withdrawDownStore.withdrawDurableAdvertisement(
       AGENT,
       VERSION,
       record.id,
@@ -308,11 +318,11 @@ describe("PostgreSQL skill advertisement store", () => {
 
     const offline = scripted([], { connectFails: true });
     const offlineStore = new PostgresSkillAdvertisementStore(offline.pool, { record() {} });
-    expect(await offlineStore.insertAdvertised(record, event())).toEqual(dependency);
-    expect(await offlineStore.withdrawMatching(AGENT, VERSION, record.id, event())).toEqual(
-      dependency,
-    );
-    expect(await offlineStore.findCurrent(AGENT, VERSION)).toBeNull();
+    expect(await offlineStore.insertDurableAdvertisement(record, event())).toEqual(dependency);
+    expect(
+      await offlineStore.withdrawDurableAdvertisement(AGENT, VERSION, record.id, event()),
+    ).toEqual(dependency);
+    expect(await offlineStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
     expect(offline.released()).toBe(0);
   });
 
@@ -332,14 +342,14 @@ describe("PostgreSQL skill advertisement store", () => {
       },
     ]);
     const store = new PostgresSkillAdvertisementStore(found.pool, { record() {} });
-    expect(await store.findCurrent(AGENT, VERSION)).toEqual({
+    expect(await store.findDurableAdvertisement(AGENT, VERSION)).toEqual({
       kind: "skill-advertisement",
       id: record.id,
       agentId: record.agentId,
       skillVersion: record.skillVersion,
       status: "advertised",
     });
-    const withdrawn = await store.findCurrent(AGENT, VERSION);
+    const withdrawn = await store.findDurableAdvertisement(AGENT, VERSION);
     expect(withdrawn).toMatchObject({ status: "withdrawn", kind: "skill-advertisement" });
     expect(Object.keys(withdrawn as object)).toEqual([
       "kind",
@@ -355,17 +365,17 @@ describe("PostgreSQL skill advertisement store", () => {
 
     const blank = scripted([{ rows: [] }, { rows: [null] }, { rows: [[]] }]);
     const blankStore = new PostgresSkillAdvertisementStore(blank.pool, { record() {} });
-    expect(await blankStore.findCurrent(AGENT, VERSION)).toBeNull();
-    expect(await blankStore.findCurrent(AGENT, VERSION)).toBeNull();
-    expect(await blankStore.findCurrent(AGENT, VERSION)).toBeNull();
+    expect(await blankStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
+    expect(await blankStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
+    expect(await blankStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
 
     const corrupt = scripted([{ rows: [{ advertisement_id: record.id, status: "advertised" }] }]);
     const corruptStore = new PostgresSkillAdvertisementStore(corrupt.pool, { record() {} });
-    expect(await corruptStore.findCurrent(AGENT, VERSION)).toBeNull();
+    expect(await corruptStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
 
     const queryDown = scripted([{ error: new Error("select down") }]);
     const queryStore = new PostgresSkillAdvertisementStore(queryDown.pool, { record() {} });
-    expect(await queryStore.findCurrent(AGENT, VERSION)).toBeNull();
+    expect(await queryStore.findDurableAdvertisement(AGENT, VERSION)).toBeNull();
     expect(queryDown.released()).toBe(1);
 
     const schema = scripted([{ rowCount: 0, rows: [] }]);
