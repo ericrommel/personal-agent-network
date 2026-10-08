@@ -26,3 +26,10 @@ export {
   type ApprovalStore,
   InMemoryApprovalStore,
 } from "./in-memory-approval-store.js";
+export type { SqlPool } from "./postgres-approval-store.js";
+export {
+  APPROVAL_SCHEMA_SQL,
+  applyApprovalSchema,
+  createPgPool,
+  PostgresApprovalStore,
+} from "./postgres-approval-store.js";
