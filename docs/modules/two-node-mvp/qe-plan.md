@@ -34,7 +34,7 @@ Process-local unit tests cover the relationship revoke, the permission and polic
 
 PostgreSQL adapters for relationships, approvals, audit, permissions, and skill advertisements are on main. `LocalAvailabilityNode` uses an adapter only when that option is injected. The constructor does not open a database pool. GitHub Actions quality is the live database evidence. A skipped local run is not that evidence.
 
-Two-process probes on main observe one successful ASK spend, expiry denial, a release one millisecond before expiry, permission invalidation, relationship revoke, relationship restore, advertisement withdraw, advertisement readvertise, and a process-local budget that a second process does not inherit. This change adds a different end on the same request id: the stored end stays, context is not read, and the exact interval can still be spent once. Each probe is a bounded observation. Together they are not AC-MSG-001 and they are not Issue #13 acceptance.
+Two-process probes on main observe one successful ASK spend, expiry denial, a release one millisecond before expiry, permission invalidation, relationship revoke, relationship restore, advertisement withdraw, advertisement readvertise, a process-local budget that a second process does not inherit, and a different end on the same request id. That different end keeps the stored end, reads no context, and still lets the exact interval be spent once. This change records an unparsable stored expiry: the restarted read fails closed without a context read and leaves the SQL row approved. Each probe is a bounded observation. Together they are not AC-MSG-001 and they are not Issue #13 acceptance.
 
 ## Still blocked inside this strategy
 
