@@ -34,15 +34,18 @@ Status values:
 
 Historical "Implementation status" lines below record the state when the item was written. A `Resolved` queue class supersedes a historical "blocked" line. No current item is a Reserved Product Decision.
 
-As of 2026-10-08:
+As of 2026-10-08, at main `82a2b18ddd3ef2b727d4545b09fee7b00860dbae`:
 
-- Audit, PRQ-008: Engineering Accepted in PR #56 (`f747afe91f021d7583636fc3150756a94185090e`). Ready for PO Acceptance. The log is process-local.
-- Approval, PRQ-006 and PRQ-007: Engineering Accepted in PR #58 (`35b18161bcb527ef4cc01f3af63aaeba045217aa`). Ready for PO Acceptance. The store is process-local.
+- Audit, PRQ-008: Engineering Accepted for the process-local log in PR #56 (`f747afe91f021d7583636fc3150756a94185090e`). Ready for PO Acceptance. PR #66 (`82a2b18ddd3ef2b727d4545b09fee7b00860dbae`) added an unwired PostgreSQL log. The node still uses `LocalAuditLog`. That adapter is not restart-safe acceptance.
+- Approval, PRQ-006 and PRQ-007: Engineering Accepted for the process-local store in PR #58 (`35b18161bcb527ef4cc01f3af63aaeba045217aa`). Ready for PO Acceptance. PR #65 (`7db0eac5eb129f1e90b2feac00c933ec0a172756`) added an unwired PostgreSQL store. `ApprovalService` is still synchronous. That adapter is not restart-safe acceptance.
 - Skill permission and policy service, PRQ-005, PRQ-010, and PRQ-003: on main in PR #54 (`81e902ad5a337e8943fdc8e4aef7bc36a12457f8`). The bounded process-local slice is Engineering Accepted. Wiring `UnreleasedApprovalPort` to `ApprovalService.invalidateUnreleased` is cross-module composition, not a missing permission rule.
 - Availability, PRQ-004: Engineering Accepted in PR #57 (`c3a4573c78e6fce0e9f6f66fa4a42570c07f8c82`). Ready for PO Acceptance. The service is process-local and is not a calendar provider.
 - Messaging boundary, PRQ-012 and PRQ-013: merged in PR #55 (`5efa533d4b65e6fd4bb7b3395fc448a3f3173b89`). Security and QE accepted this in-process slice. It is not whole-module Engineering Accepted and it is not remote ingress. Replay protection and handshake freshness remain a later slice. They are not a new Reserved Product Decision. The numeric window is not chosen.
 - Relationships durability, PO-REL-6: the PostgreSQL revoke adapter merged in PR #60 (`060f281bbd40fa12df457abd807630bb44418d74`). Quality run 37747612038 executed the integration test. This does not accept the two-node demonstration.
-- Two-node, PRQ-009: preparation continues. Acceptance still needs two processes, replay rejection, and restart evidence. The durable revoke is no longer an open pull request. No new Reserved Product Decision blocks that preparation.
+- Composition: PR #62 (`04c6af113e3924d5b3464c6a743b08f5dd05fd67`) wires the in-process node. That is not two-node acceptance.
+- Local command probe, PRQ-009: PR #63 (`0fa39166c7dcde41e0154dc0a31bf214f4c794d3`) is an argv probe. It is not a product UI and it does not accept the two-node demonstration.
+- Two-node quality strategy: PR #64 (`85d26b6c375df2a83bc2cfac6135d780848ee03b`) records the test strategy only.
+- Two-node, PRQ-009: preparation continues. Acceptance still needs two processes against PostgreSQL, replay rejection, and durable approval and audit reconstruction. The numeric replay window is not chosen. No new Reserved Product Decision blocks that preparation.
 - No new Reserved Product Decision.
 
 ## PRQ-001 — Delegated autonomous delivery
