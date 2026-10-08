@@ -14,17 +14,17 @@ Add a PostgreSQL approval store with the same observable results as
 This slice adds `migrations/0002_approvals.sql`, `PostgresApprovalStore`, the
 unit and integration tests, the exports those tests need, and this plan.
 
-Service wiring is intentionally deferred until PR #62 merges.
-`SkillPermissionService` calls `UnreleasedApprovalPort.invalidateUnreleased`
-synchronously and must not fire-and-forget, because that would miss D4.
-`LocalAvailabilityNode` on open PR #62 also calls `ApprovalService`
-synchronously. Changing those signatures on this branch would collide with #62.
+Service wiring stays deferred. `SkillPermissionService` calls
+`UnreleasedApprovalPort.invalidateUnreleased` synchronously. A fire-and-forget
+wrapper would miss D4. `LocalAvailabilityNode` on main still calls the
+synchronous `ApprovalService`. The follow-up that awaits invalidation is a
+separate change after this store is on main.
 
 Out of scope: `ApprovalService` method signatures, the `ApprovalStore`
-interface, `skill-permission-service.ts`, `LocalAvailabilityNode` and
-`src/runtime` (not on this branch), `src/main.ts`, CI, gitleaks,
-`package.json`, replay windows, CLI, HTTP, product UI, and any audit row in
-PostgreSQL. This adapter is not restart-safe two-node acceptance. No new ADR.
+interface, `skill-permission-service.ts`, `LocalAvailabilityNode`,
+`src/runtime`, `src/main.ts`, CI, gitleaks, `package.json`, replay windows,
+CLI, HTTP, product UI, and any audit row in PostgreSQL. This adapter is not
+restart-safe two-node acceptance. No new ADR.
 
 ## Requirements and acceptance criteria
 
