@@ -47,6 +47,7 @@ import {
 import {
   InMemorySkillAdvertisementStore,
   SkillAdvertisementService,
+  type SkillAdvertisementStorePort,
 } from "../modules/skills/index.js";
 import type { Result } from "../shared/domain/result.js";
 
@@ -71,6 +72,7 @@ export type LocalAvailabilityNodeOptions = Readonly<{
   relationshipStore?: RelationshipStorePort;
   approvalStore?: ApprovalStore;
   permissionStore?: SkillPermissionStorePort;
+  advertisementStore?: SkillAdvertisementStorePort;
 }>;
 
 type QueryInput = Readonly<{
@@ -91,9 +93,10 @@ const silentEvents = { record(): void {} };
 /**
  * Process-local wiring for one availability node.
  * The default stores drop on restart. An injected PostgreSQL relationship store,
- * approval store, permission store, or audit log can outlive the process.
- * handle waits for the audit append. Approval calls wait for the approval store.
- * Permission calls wait for the permission store. These options are not
+ * approval store, permission store, advertisement store, or audit log can
+ * outlive the process. handle waits for the audit append. Approval calls wait
+ * for the approval store. Permission calls wait for the permission store.
+ * Advertisement calls wait for the advertisement store. These options are not
  * two-node acceptance evidence.
  */
 export class LocalAvailabilityNode {
@@ -129,7 +132,7 @@ export class LocalAvailabilityNode {
     this.advertisements = new SkillAdvertisementService({
       parties,
       events: silentEvents,
-      store: new InMemorySkillAdvertisementStore(silentEvents),
+      store: options.advertisementStore ?? new InMemorySkillAdvertisementStore(silentEvents),
     });
     this.permissions = new SkillPermissionService({
       parties,

@@ -19,6 +19,7 @@ import {
 } from "../../../src/modules/relationships/index.js";
 import {
   AVAILABILITY_SKILL_VERSION_V1,
+  InMemorySkillAdvertisementStore,
   SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
   type TrustedSkillAdvertisementSource,
 } from "../../../src/modules/skills/index.js";
@@ -565,5 +566,50 @@ describe("local availability node", () => {
     ).toBe(true);
     expect(store.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "revoked" });
     expect(await first.permissions.readSnapshot(FROM, TO)).toBeNull();
+  });
+
+  it("uses an injected advertisement store for a later node", async () => {
+    const store = new InMemorySkillAdvertisementStore({ record() {} });
+    const first = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM)],
+      advertisementStore: store,
+    });
+    const created = unwrap(
+      await first.advertisements.advertise(advertisementSource, {
+        contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
+        action: "advertise",
+        correlationId: "corr-ad-injected",
+        agentId: FROM,
+        skillVersion: AVAILABILITY_SKILL_VERSION_V1,
+      }),
+    );
+    expect(store.findCurrent(FROM, AVAILABILITY_SKILL_VERSION_V1)).toMatchObject({
+      id: created.id,
+      status: "advertised",
+    });
+    const restarted = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM)],
+      advertisementStore: store,
+    });
+    expect(await restarted.advertisements.readAdvertised(FROM, AVAILABILITY_SKILL_VERSION_V1)).toBe(
+      true,
+    );
+    expect(
+      (
+        await restarted.advertisements.withdraw(advertisementSource, {
+          contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
+          action: "withdraw",
+          correlationId: "corr-ad-injected-withdraw",
+          agentId: FROM,
+          skillVersion: AVAILABILITY_SKILL_VERSION_V1,
+          advertisementId: created.id,
+        })
+      ).ok,
+    ).toBe(true);
+    expect(await first.advertisements.readAdvertised(FROM, AVAILABILITY_SKILL_VERSION_V1)).toBe(
+      false,
+    );
   });
 });
