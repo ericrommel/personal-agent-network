@@ -392,5 +392,63 @@ describe("skill permission", () => {
       code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
     );
     expect(await failing.readSnapshot(FROM, TO)).toBeNull();
+
+    const asyncFailure = new SkillPermissionService({
+      events: { record() {} },
+      store: new InMemorySkillPermissionStore({ record() {} }),
+      approvals: {
+        invalidateUnreleased() {
+          return Promise.reject(new Error("approval down"));
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    const third = unwrap(await asyncFailure.grant(source(), grantCommand("ALLOW")));
+    expect(await asyncFailure.revoke(source(), revokeCommand(third.id))).toEqual(
+      code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
+    );
+    expect(await asyncFailure.readSnapshot(FROM, TO)).toBeNull();
+  });
+
+  it("does not settle a revoke until an async invalidator settles", async () => {
+    const store = new InMemorySkillPermissionStore({ record() {} });
+    let releaseInvalidation: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseInvalidation = resolve;
+    });
+    let started = false;
+    const service = new SkillPermissionService({
+      events: { record() {} },
+      store,
+      approvals: {
+        invalidateUnreleased() {
+          started = true;
+          return gate;
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    const granted = unwrap(await service.grant(source(), grantCommand("ASK")));
+    let settled = false;
+    const pending = service.revoke(source(), revokeCommand(granted.id)).then((result) => {
+      settled = true;
+      return result;
+    });
+    // Async revoke frames settle on later microtasks even when the invalidator
+    // is not awaited. A macrotask runs only after that chain, so the gate must
+    // still be open here or the wait is not proven.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(started).toBe(true);
+    expect(settled).toBe(false);
+    releaseInvalidation();
+    expect((await pending).ok).toBe(true);
+    expect(settled).toBe(true);
+    expect(store.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "revoked" });
   });
 });

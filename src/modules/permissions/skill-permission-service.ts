@@ -137,7 +137,7 @@ export class SkillPermissionService {
       if (action === "grant") {
         return await this.#grant(parsed, correlationId, sourceKey);
       }
-      return this.#revoke(parsed, correlationId, sourceKey);
+      return await this.#revoke(parsed, correlationId, sourceKey);
     } catch {
       return rejected("SKILL_PERMISSION_DEPENDENCY_FAILED");
     }
@@ -183,11 +183,11 @@ export class SkillPermissionService {
     return rejected("SKILL_PERMISSION_DEPENDENCY_FAILED");
   }
 
-  #revoke(
+  async #revoke(
     parsed: ParsedCommand,
     correlationId: string,
     sourceKey: string,
-  ): Result<SkillPermission, SkillPermissionError> {
+  ): Promise<Result<SkillPermission, SkillPermissionError>> {
     const stored = this.#store.revokeMatching(
       parsed.fromAgentId,
       parsed.toAgentId,
@@ -200,7 +200,8 @@ export class SkillPermissionService {
       stored.id === parsed.permissionId
     ) {
       // A later ASK grant must not spend an approval that belonged to this revoked permission.
-      this.#approvals.invalidateUnreleased(stored.fromAgentId, stored.toAgentId);
+      // Await a Promise so a durable store cannot be fire-and-forget. A synchronous port still works.
+      await this.#approvals.invalidateUnreleased(stored.fromAgentId, stored.toAgentId);
       return success(stored);
     }
     if (isErrorCode(stored, "SKILL_PERMISSION_NOT_FOUND")) {
