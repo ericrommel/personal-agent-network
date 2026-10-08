@@ -32,6 +32,7 @@ import {
 import {
   InMemorySkillPermissionStore,
   SkillPermissionService,
+  type SkillPermissionStorePort,
 } from "../modules/permissions/index.js";
 import {
   decideAuthorization,
@@ -69,6 +70,7 @@ export type LocalAvailabilityNodeOptions = Readonly<{
   findAgent?: (id: unknown) => Promise<unknown>;
   relationshipStore?: RelationshipStorePort;
   approvalStore?: ApprovalStore;
+  permissionStore?: SkillPermissionStorePort;
 }>;
 
 type QueryInput = Readonly<{
@@ -89,9 +91,10 @@ const silentEvents = { record(): void {} };
 /**
  * Process-local wiring for one availability node.
  * The default stores drop on restart. An injected PostgreSQL relationship store,
- * approval store, or audit log can outlive the process. handle waits for the
- * audit append, and approval calls wait for the approval store. These options
- * are not two-node acceptance evidence.
+ * approval store, permission store, or audit log can outlive the process.
+ * handle waits for the audit append. Approval calls wait for the approval store.
+ * Permission calls wait for the permission store. These options are not
+ * two-node acceptance evidence.
  */
 export class LocalAvailabilityNode {
   readonly auditLog: LocalAuditLog;
@@ -131,7 +134,7 @@ export class LocalAvailabilityNode {
     this.permissions = new SkillPermissionService({
       parties,
       events: silentEvents,
-      store: new InMemorySkillPermissionStore(silentEvents),
+      store: options.permissionStore ?? new InMemorySkillPermissionStore(silentEvents),
       approvals: {
         invalidateUnreleased: (from, to) => this.approvals.invalidateUnreleased(from, to),
       },

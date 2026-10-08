@@ -9,6 +9,7 @@ import type { AvailabilityInterval } from "../../../src/modules/context/index.js
 import { type AgentIdentity, createAgentIdentity } from "../../../src/modules/identity/index.js";
 import { AVAILABILITY_REQUEST_CONTRACT_V1 } from "../../../src/modules/messaging/index.js";
 import {
+  InMemorySkillPermissionStore,
   SKILL_PERMISSION_COMMAND_CONTRACT_V1,
   type TrustedPermissionSource,
 } from "../../../src/modules/permissions/index.js";
@@ -521,5 +522,48 @@ describe("local availability node", () => {
     releaseValues();
     expect((await pending).ok).toBe(true);
     expect((await node.approvals.findByRequestId("req-invalidate"))?.status).toBe("invalidated");
+  });
+
+  it("uses an injected permission store for a later node", async () => {
+    const store = new InMemorySkillPermissionStore({ record() {} });
+    const first = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM), agent(TO)],
+      permissionStore: store,
+    });
+    const granted = unwrap(
+      await first.permissions.grant(permissionSource, {
+        contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+        action: "grant",
+        correlationId: "corr-injected",
+        fromAgentId: FROM,
+        toAgentId: TO,
+        effect: "ALLOW",
+      }),
+    );
+    expect(store.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "active" });
+    const restarted = new LocalAvailabilityNode({
+      clock: clockAt({ now: ORIGIN }),
+      agents: [agent(FROM), agent(TO)],
+      permissionStore: store,
+    });
+    expect(await restarted.permissions.readSnapshot(FROM, TO)).toMatchObject({
+      decision: "ALLOW",
+    });
+    expect(
+      (
+        await restarted.permissions.revoke(permissionSource, {
+          contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+          action: "revoke",
+          correlationId: "corr-injected-revoke",
+          fromAgentId: FROM,
+          toAgentId: TO,
+          effect: "ALLOW",
+          permissionId: granted.id,
+        })
+      ).ok,
+    ).toBe(true);
+    expect(store.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "revoked" });
+    expect(await first.permissions.readSnapshot(FROM, TO)).toBeNull();
   });
 });
