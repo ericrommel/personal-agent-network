@@ -25,6 +25,13 @@ export type {
   SkillAdvertisementStorePort,
   TrustedSkillAdvertisementSource,
 } from "./ports.js";
+export type { SqlPool } from "./postgres-skill-advertisement-store.js";
+export {
+  applySkillAdvertisementSchema,
+  createPgPool,
+  PostgresSkillAdvertisementStore,
+  SKILL_ADVERTISEMENT_SCHEMA_SQL,
+} from "./postgres-skill-advertisement-store.js";
 export {
   SkillAdvertisementService,
   type SkillAdvertisementServiceDependencies,
