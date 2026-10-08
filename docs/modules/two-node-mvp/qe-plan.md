@@ -26,22 +26,26 @@ Malformed input. An extra body field, a bad principal, a past or otherwise inval
 
 Replay and freshness. A stale, duplicated, or rebound network message must fail closed without a second disclosure. The numeric window is not chosen. This plan does not pick one. Do not encode a number in an acceptance test until a later engineering decision records it. That unset number is not a new Reserved Product Decision. Approval idempotency for one request id is the D4 rule and is not a network replay cache.
 
-Restart. Revoke the relationship. Restart the receiver. The next decision and the check immediately before disclosure deny because the revoked PostgreSQL row was loaded. Applicable unreleased approval state on that same durable authority is still invalid after restart. This observation is not done.
+Restart. A second process can load PostgreSQL rows for the relationship, the permission, the advertisement, the approval, and the audit. Relationship revoke and advertisement withdraw make the next decision deny, read no context, and leave an approved ASK approved. Permission revoke invalidates pending and approved-unreleased rows, and the second process sees that invalidated state. A delivered result is not retracted. These probes are not the two-node demonstration, and they do not accept Issue #13.
 
 ## What is already covered
 
-Process-local unit tests on main cover the relationship revoke, the permission and policy decision, the approval lifecycle, the availability budgets, the minimized audit log, and the in-process message boundary. PR #62 merged the composition of those pieces in one process. PR #63 is the argv adapter and is not this acceptance suite. None of those runs is Issue #13 acceptance.
+Process-local unit tests cover the relationship revoke, the permission and policy decision, the approval lifecycle, the availability budgets, the minimized audit log, and the in-process message boundary. PR #62 composed those pieces in one process. PR #63 is the argv adapter. None of those runs is Issue #13 acceptance.
 
-The Postgres relationship integration test runs in GitHub Actions. It does not restart a second process.
+PostgreSQL adapters for relationships, approvals, audit, permissions, and skill advertisements are on main. `LocalAvailabilityNode` uses an adapter only when that option is injected. The constructor does not open a database pool. GitHub Actions quality is the live database evidence. A skipped local run is not that evidence.
+
+Two-process probes on main observe one successful ASK spend, expiry denial, a release one millisecond before expiry, permission invalidation, relationship revoke, relationship restore, and advertisement withdraw. Each probe is a bounded observation. Together they are not AC-MSG-001 and they are not Issue #13 acceptance.
 
 ## Still blocked inside this strategy
 
-- No acceptance test may choose a replay or handshake-freshness window.
-- Approval, audit, and permission stores are still process-local. Single-use approval and audit reconstruction are not restart-safe until those stores are durable. The next persistence slice is a PostgreSQL approval store. It is not on main. Wiring it must await invalidation. A fire-and-forget call would miss D4.
+- No acceptance test may choose a replay or handshake-freshness window. The unset number is not a new Reserved Product Decision.
+- Injected PostgreSQL adapters are not restart-safe two-node acceptance. The node still does not open a pool, and there is no listening HTTPS server.
+- Relationship revoke and advertisement withdraw do not invalidate unreleased approvals. Permission revoke does. This plan does not add the other calls.
 - The CLI adapter must not grow a grant or revoke command. Owner mutation stays on the existing local services.
 - External AI stays out of the suite.
 - No product UI.
+- Do not check Engineering Accepted on Issue #13 from these probes.
 
 ## Commands that are not acceptance
 
-`npm.cmd run verify` is the component gate. The two-process command does not exist yet. When it does, the evidence record must show the command, both public responses, and a separate read of the receiver's audit that contains neither the boolean nor the calendar.
+`npm.cmd run verify` is the component gate. The two-process probes run in that gate when the database URL is set. They are not the Issue #13 acceptance command. That command does not exist yet. When it does, the evidence record must show the command, both public responses, and a separate read of the receiver's audit that contains neither the boolean nor the calendar.
