@@ -83,6 +83,9 @@ running locally.
 
 - 2026-10-08: Policy denies before release when the relationship is already
   revoked, so the approval row stays approved and unspent.
+- 2026-10-08: The first quality run failed with `23505` on
+  `pg_type_typname_nsp_index` while another test created `approval_records`.
+  The probe retries that collision. Any other error still fails it.
 
 ## Handoff and completion evidence
 

@@ -3,18 +3,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  type SqlPool as ApprovalPool,
   applyApprovalSchema,
   createPgPool as createApprovalPool,
   PostgresApprovalStore,
-  type SqlPool as ApprovalPool,
   type TrustedApprovalSource,
 } from "../../src/modules/approval/index.js";
 import {
   type AuditEvent,
+  type SqlPool as AuditPool,
   applyAuditSchema,
   createPgPool as createAuditPool,
   PostgresAuditLog,
-  type SqlPool as AuditPool,
   type TrustedAuditOperator,
 } from "../../src/modules/audit/index.js";
 import type { AvailabilityInterval } from "../../src/modules/context/index.js";
@@ -25,12 +25,12 @@ import {
   AVAILABILITY_SCOPE_V1,
 } from "../../src/modules/messaging/index.js";
 import {
-  applySkillPermissionSchema,
   AwaitedSkillPermissionStore,
+  applySkillPermissionSchema,
   createPgPool as createPermissionPool,
+  type SqlPool as PermissionPool,
   PostgresSkillPermissionStore,
   SKILL_PERMISSION_COMMAND_CONTRACT_V1,
-  type SqlPool as PermissionPool,
   type TrustedPermissionSource,
 } from "../../src/modules/permissions/index.js";
 import {
@@ -42,13 +42,13 @@ import {
   type TrustedRelationshipSource,
 } from "../../src/modules/relationships/index.js";
 import {
-  applySkillAdvertisementSchema,
+  type SqlPool as AdvertisementPool,
   AVAILABILITY_SKILL_VERSION_V1,
   AwaitedSkillAdvertisementStore,
+  applySkillAdvertisementSchema,
   createPgPool as createAdvertisementPool,
   PostgresSkillAdvertisementStore,
   SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
-  type SqlPool as AdvertisementPool,
   type TrustedSkillAdvertisementSource,
 } from "../../src/modules/skills/index.js";
 import { LocalAvailabilityNode } from "../../src/runtime/local-availability-node.js";
@@ -158,11 +158,13 @@ describe.skipIf(databaseUrl === "")("revoked relationship denies an approved ASK
     auditPool = createAuditPool(databaseUrl);
     permissionPool = createPermissionPool(databaseUrl);
     advertisementPool = createAdvertisementPool(databaseUrl);
-    await applyRelationshipSchema(relationshipPool);
-    await applyApprovalSchema(approvalPool);
-    await applyAuditSchema(auditPool);
-    await applySkillPermissionSchema(permissionPool);
-    await applySkillAdvertisementSchema(advertisementPool);
+    await applySchemas({
+      relationship: relationshipPool,
+      approval: approvalPool,
+      audit: auditPool,
+      permission: permissionPool,
+      advertisement: advertisementPool,
+    });
     const lock = await relationshipPool.connect();
     await lock.query("SELECT pg_advisory_lock($1)", [RELATIONSHIP_TABLE_LOCK]);
     await lock.query("SELECT pg_advisory_lock($1)", [APPROVAL_TABLE_LOCK]);
@@ -192,6 +194,38 @@ describe.skipIf(databaseUrl === "")("revoked relationship denies an approved ASK
     }
   });
 });
+
+const schemaRace = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const record = error as { code?: unknown; message?: unknown };
+  return (
+    record.code === "23505" ||
+    (typeof record.message === "string" && record.message.includes("pg_type_typname_nsp_index"))
+  );
+};
+
+// Concurrent CREATE TABLE IF NOT EXISTS can collide on the row type.
+const applySchemas = async (pools: Pools): Promise<void> => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await applyRelationshipSchema(pools.relationship);
+      await applyApprovalSchema(pools.approval);
+      await applyAuditSchema(pools.audit);
+      await applySkillPermissionSchema(pools.permission);
+      await applySkillAdvertisementSchema(pools.advertisement);
+      return;
+    } catch (error) {
+      if (attempt === 4 || !schemaRace(error)) {
+        throw error;
+      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, 25 * (attempt + 1));
+      });
+    }
+  }
+};
 
 const makeNode = (
   pools: Pools,
