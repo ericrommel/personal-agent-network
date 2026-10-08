@@ -453,19 +453,25 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
           })
         ).ok,
       ).toBe(true);
-      expect(
-        (
-          await resources.node.permissions.grant(permissionSource, {
-            contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
-            action: "grant",
-            correlationId: "corr-demo-deny",
-            fromAgentId: FROM,
-            toAgentId: TO,
-            effect: "DENY",
-          })
-        ).ok,
-      ).toBe(true);
-      expect(publicObject((await post(listener.port, "msg-deny", "req-deny")).body)).toEqual({
+      const deny = await resources.node.permissions.grant(permissionSource, {
+        contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+        action: "grant",
+        correlationId: "corr-demo-deny",
+        fromAgentId: FROM,
+        toAgentId: TO,
+        effect: "DENY",
+      });
+      expect(deny.ok).toBe(true);
+      if (!deny.ok) {
+        throw new Error("fixture");
+      }
+      expect(await resources.node.relationships.readActive(FROM, TO)).toBe(true);
+      expect(await resources.node.permissions.readSnapshot(FROM, TO)).toMatchObject({
+        decision: "DENY",
+      });
+      const deniedResponse = await post(listener.port, "msg-deny", "req-deny");
+      expect(deniedResponse.status).toBe(200);
+      expect(publicObject(deniedResponse.body)).toEqual({
         outcome: "unavailable",
       });
       expect(await resources.node.approvals.findByRequestId("req-deny")).toBeNull();
@@ -479,21 +485,6 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
         outcome: "deny",
       });
 
-      expect(
-        (
-          await resources.node.relationships.revoke(relationshipSource, {
-            contract: RELATIONSHIP_COMMAND_CONTRACT_V1,
-            action: "revoke",
-            correlationId: "corr-demo-rel-revoke",
-            fromAgentId: FROM,
-            toAgentId: TO,
-            relationshipId: created.value.id,
-          })
-        ).ok,
-      ).toBe(true);
-      expect(publicObject((await post(listener.port, "msg-revoked", "req-revoked")).body)).toEqual({
-        outcome: "unavailable",
-      });
       expect(
         publicObject(
           (
@@ -522,6 +513,74 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
           ).body,
         ),
       ).toEqual({ outcome: "unavailable" });
+
+      expect(
+        (
+          await resources.node.permissions.revoke(permissionSource, {
+            contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+            action: "revoke",
+            correlationId: "corr-demo-revoke-deny",
+            fromAgentId: FROM,
+            toAgentId: TO,
+            effect: "DENY",
+            permissionId: deny.value.id,
+          })
+        ).ok,
+      ).toBe(true);
+      const restored = await resources.node.permissions.grant(permissionSource, {
+        contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
+        action: "grant",
+        correlationId: "corr-demo-allow-again",
+        fromAgentId: FROM,
+        toAgentId: TO,
+        effect: "ALLOW",
+      });
+      expect(restored.ok).toBe(true);
+      expect(await resources.node.relationships.readActive(FROM, TO)).toBe(true);
+      expect(await resources.node.permissions.readSnapshot(FROM, TO)).toMatchObject({
+        decision: "ALLOW",
+      });
+      const restoredResponse = await post(listener.port, "msg-allow-again", "req-allow-again");
+      expect(restoredResponse.status).toBe(200);
+      expect(publicObject(restoredResponse.body)).toEqual({ result: true });
+      expect(await resources.node.approvals.findByRequestId("req-allow-again")).toBeNull();
+      expect(
+        (
+          await resources.node.relationships.revoke(relationshipSource, {
+            contract: RELATIONSHIP_COMMAND_CONTRACT_V1,
+            action: "revoke",
+            correlationId: "corr-demo-rel-revoke",
+            fromAgentId: FROM,
+            toAgentId: TO,
+            relationshipId: created.value.id,
+          })
+        ).ok,
+      ).toBe(true);
+      expect(await resources.node.relationships.readActive(FROM, TO)).toBe(false);
+      expect(await resources.node.permissions.readSnapshot(FROM, TO)).toMatchObject({
+        decision: "ALLOW",
+      });
+      await listener.stop();
+      listener = await start();
+      const revokedResponse = await post(listener.port, "msg-rel-revoked", "req-rel-revoked");
+      expect(revokedResponse.status).toBe(200);
+      expect(publicObject(revokedResponse.body)).toEqual({ outcome: "unavailable" });
+      expect(await resources.node.approvals.findByRequestId("req-rel-revoked")).toBeNull();
+      const revokedAudit = await resources.audit.read(operator);
+      expect(revokedAudit.ok).toBe(true);
+      if (!revokedAudit.ok) {
+        throw new Error("fixture");
+      }
+      const revokedEvent = revokedAudit.value.find(
+        (event) => event?.requestId === "req-rel-revoked",
+      );
+      expect(revokedEvent).toMatchObject({
+        category: "decision",
+        outcome: "deny",
+      });
+      expect(JSON.stringify(revokedEvent)).not.toContain(START);
+      expect(JSON.stringify(revokedEvent)).not.toContain(END);
+      expect(JSON.stringify(revokedEvent)).not.toContain("ALLOW");
       await listener.stop();
     } finally {
       for (const child of children) {

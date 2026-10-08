@@ -25,9 +25,9 @@ Resolved since that check:
 
 Still open for Issue #13:
 
-- Replay protection and handshake freshness. The numeric window is not chosen. That is not a new Reserved Product Decision.
-- Whole-module messaging acceptance. The in-process boundary and the two-process probes are on main. They are not that acceptance.
-- Human Product Owner acceptance of the demonstration. Engineering Accepted is not claimed.
+- Engineering Accepted for the demonstration. ADR-0007 records the 5-minute validity window and 30-second skew. The mutual-TLS composition is not that acceptance check.
+- Whole-module messaging acceptance. The in-process boundary, the mutual-TLS server, and the two-process probes are not that acceptance. `src/main.ts` and the CLI do not listen.
+- Human Product Owner acceptance of the demonstration. Engineering does not infer it. Engineering Accepted is not claimed.
 
 PR #85 is on main. A restarted process loads the revoked relationship, returns `{ outcome: "unavailable" }`, reads no context, and leaves the approved ASK approved. That probe is not Issue #13 acceptance.
 

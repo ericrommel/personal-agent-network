@@ -10,7 +10,7 @@ Compose the existing PostgreSQL adapters with the mutual-TLS availability server
 
 ## Scope and non-goals
 
-In scope: open the relationship, approval, permission, advertisement, audit, and replay adapters only when `openDurableAvailabilityResources` is called. The returned dependencies feed `createRemoteHttpsServer`. A two-process test listens on `127.0.0.1` and covers ALLOW, ASK, DENY, revoke, replay, malformed input, recipient binding, restart, and minimal disclosure.
+In scope: open the relationship, approval, permission, advertisement, audit, and replay adapters only when `openDurableAvailabilityResources` is called. The returned dependencies feed `createRemoteHttpsServer`. A two-process test listens on `127.0.0.1` and covers ALLOW, ASK, DENY, revoke, replay, malformed input, recipient binding, restart, and minimal disclosure. The explicit DENY runs while the relationship is active. The relationship revoke runs later, with ALLOW still stored, and the denial is loaded by a new listener process.
 
 Non-goals: `src/main.ts`, the CLI, a product UI, a pool opened by `LocalAvailabilityNode`, and Issue #13 acceptance. Remote input still cannot grant authority.
 
