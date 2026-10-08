@@ -58,7 +58,7 @@ No new Reserved Product Decision. The unset replay window blocks only the replay
 ## Progress
 
 - [x] 2026-10-08: strategy drafted from the resolved decisions and the durability gate.
-- [ ] QE review of the strategy.
+- [x] 2026-10-08: QE reviewed the strategy. That review does not check two-process restart evidence.
 - [ ] Two-process restart evidence.
 - [ ] Replay scenario, after a window exists.
 
@@ -72,6 +72,7 @@ No new Reserved Product Decision. The unset replay window blocks only the replay
 - 2026-10-08: PR #97 observed a stored active DENY effect. The restarted process denies the exact request, reads no context, creates no approval row, and leaves that permission active DENY. Recording that probe does not check the two-process restart evidence box.
 - 2026-10-08: PR #101 observed an exact interval start. The restarted clock equals that start, spends the approved ASK once, and the following handle does not read context again. Recording that probe does not check the two-process restart evidence box.
 - 2026-10-08: PR #99 observed another requester. That requester has a separate active relationship and ASK permission. The restarted process does not spend the approved ASK, reads no context, and leaves the row approved for the bound requester. The bound requester then spends it once. Recording that probe does not check the two-process restart evidence box.
+- 2026-10-08: QE reviewed the strategy text. The merged probes are named, no replay number is chosen, and Issue #13 is not accepted. That review checks only the strategy-review box.
 
 ## Handoff and completion evidence
 
