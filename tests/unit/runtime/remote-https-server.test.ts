@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { request as httpsRequest } from "node:https";
+import { Agent, request as httpsRequest } from "node:https";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -96,7 +96,7 @@ class FakeResponse {
     this.headers[name] = value;
   }
 
-  end(payload: string): void {
+  end(payload: string, flushed?: () => void): void {
     if (this.endThrows) {
       this.headersSent = true;
       throw new Error("end down");
@@ -104,6 +104,7 @@ class FakeResponse {
     this.body = payload;
     this.headersSent = true;
     this.writableEnded = true;
+    flushed?.();
   }
 
   destroy(): void {
@@ -329,7 +330,7 @@ describe("mutual-TLS availability ingress", () => {
     expect(ended.body).toBe("");
   });
 
-  it("serves one handshake and rejects a client without a certificate", async () => {
+  it("completes one handshake and denies oversized uploads", async () => {
     const directory = mkdtempSync(join(tmpdir(), "pan-mtls-"));
     const openssl = (args: string[]) => {
       execFileSync("openssl", args, { cwd: directory, stdio: "pipe" });
@@ -416,9 +417,13 @@ describe("mutual-TLS availability ingress", () => {
       "copy",
     ]);
     const file = (name: string) => readFileSync(join(directory, name));
+    let calls = 0;
     const server = createRemoteHttpsServer(
       { key: file("server.key"), cert: file("server.crt"), ca: file("ca.crt") },
-      dependencies(async () => ({ result: true })),
+      dependencies(async () => {
+        calls += 1;
+        return { result: true };
+      }),
     );
     server.listen(0, "127.0.0.1");
     await once(server, "listening");
@@ -426,7 +431,12 @@ describe("mutual-TLS availability ingress", () => {
     if (address === null || typeof address === "string") {
       throw new Error("port");
     }
-    const post = (cert: { cert: Buffer; key: Buffer } | undefined) =>
+    const post = (
+      payload: Buffer,
+      cert: { cert: Buffer; key: Buffer } | undefined,
+      headers?: Record<string, string>,
+      agent: Agent | false = false,
+    ) =>
       new Promise<{ status: number; body: string }>((resolve, reject) => {
         const outbound = httpsRequest(
           {
@@ -439,9 +449,10 @@ describe("mutual-TLS availability ingress", () => {
             cert: cert?.cert,
             key: cert?.key,
             rejectUnauthorized: true,
-            headers: {
+            agent,
+            headers: headers ?? {
               "content-type": "application/json",
-              "content-length": Buffer.byteLength(envelope("msg-live")),
+              "content-length": String(payload.length),
             },
           },
           (response) => {
@@ -456,15 +467,63 @@ describe("mutual-TLS availability ingress", () => {
           },
         );
         outbound.on("error", reject);
-        outbound.end(envelope("msg-live"));
+        outbound.end(payload);
       });
     try {
-      const live = await post({ cert: file("client.crt"), key: file("client.key") });
+      const client = { cert: file("client.crt"), key: file("client.key") };
+      const live = await post(Buffer.from(envelope("msg-live")), client);
       expect(live.status).toBe(200);
       expect(JSON.parse(live.body)).toEqual({ result: true });
-      const replay = await post({ cert: file("client.crt"), key: file("client.key") });
+      const replay = await post(Buffer.from(envelope("msg-live")), client);
       expect(JSON.parse(replay.body)).toEqual({ outcome: "unavailable" });
-      await expect(post(undefined)).rejects.toThrow();
+      await expect(post(Buffer.from(envelope("msg-live")), undefined)).rejects.toThrow();
+      const oversized = Buffer.alloc(MAX_REMOTE_BODY_BYTES + 1, 0x78);
+      const declared = await post(oversized, client);
+      expect(declared.status).toBe(200);
+      expect(JSON.parse(declared.body)).toEqual({ outcome: "unavailable" });
+      const postWithoutLength = (agent: Agent | false) =>
+        new Promise<{ status: number; body: string }>((resolve, reject) => {
+          const outbound = httpsRequest(
+            {
+              host: "127.0.0.1",
+              port: address.port,
+              servername: "localhost",
+              path: REMOTE_AVAILABILITY_PATH,
+              method: "POST",
+              ca: file("ca.crt"),
+              cert: client.cert,
+              key: client.key,
+              rejectUnauthorized: true,
+              agent,
+              headers: { "content-type": "application/json" },
+            },
+            (response) => {
+              const chunks: Buffer[] = [];
+              response.on("data", (chunk: Buffer) => chunks.push(chunk));
+              response.on("end", () => {
+                resolve({
+                  status: response.statusCode ?? 0,
+                  body: Buffer.concat(chunks).toString("utf8"),
+                });
+              });
+            },
+          );
+          outbound.on("error", reject);
+          outbound.write(oversized.subarray(0, 1024));
+          outbound.end(oversized.subarray(1024));
+        });
+      const streamed = await postWithoutLength(false);
+      expect(streamed.status).toBe(200);
+      expect(JSON.parse(streamed.body)).toEqual({ outcome: "unavailable" });
+      const pooled = new Agent({ keepAlive: true });
+      const pooledDeclared = await post(oversized, client, undefined, pooled);
+      expect(pooledDeclared.status).toBe(200);
+      expect(JSON.parse(pooledDeclared.body)).toEqual({ outcome: "unavailable" });
+      const pooledStream = await postWithoutLength(pooled);
+      expect(pooledStream.status).toBe(200);
+      expect(JSON.parse(pooledStream.body)).toEqual({ outcome: "unavailable" });
+      pooled.destroy();
+      expect(calls).toBe(1);
     } finally {
       server.close();
       await once(server, "close");

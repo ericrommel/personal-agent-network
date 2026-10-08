@@ -63,56 +63,68 @@ export const receiveRemoteAvailability = async (
   response: ServerResponse,
   dependencies: RemoteHttpsDependencies,
 ): Promise<void> => {
-  const result = await readRemoteResult(request, dependencies);
+  const read = await readRemoteResult(request, dependencies);
+  // Destroying the upload before this write resets the socket and drops the denial.
+  const stopUpload = read.abortUpload ? () => request.destroy() : undefined;
   try {
-    writePublicJson(response, result);
+    writePublicJson(response, read.body, stopUpload);
   } catch {
     if (response.headersSent || response.writableEnded) {
       response.destroy();
       return;
     }
     try {
-      writePublicJson(response, unavailable());
+      writePublicJson(response, unavailable(), stopUpload);
     } catch {
       response.destroy();
     }
   }
 };
 
+type RemoteRead = Readonly<{
+  body: AvailabilityResponse;
+  abortUpload: boolean;
+}>;
+
+const denied = (abortUpload = false): RemoteRead =>
+  Object.freeze({ body: unavailable(), abortUpload });
+
 const readRemoteResult = async (
   request: IncomingMessage,
   dependencies: RemoteHttpsDependencies,
-): Promise<AvailabilityResponse> => {
+): Promise<RemoteRead> => {
   try {
     if (request.method !== "POST" || request.url !== REMOTE_AVAILABILITY_PATH) {
-      return unavailable();
+      return denied();
     }
     if (!jsonContentType(request.headers["content-type"])) {
-      return unavailable();
+      return denied();
     }
     if (contentLengthTooLarge(request.headers["content-length"])) {
-      request.destroy();
-      return unavailable();
+      return denied(true);
     }
     const sender = peerUriSan(request.socket);
     const raw = await readLimited(request, MAX_REMOTE_BODY_BYTES);
-    if (sender === null || raw === null) {
-      return unavailable();
+    if (sender === null || raw.text === null) {
+      return denied(raw.overflow);
     }
     const accepted = await acceptRemoteEnvelope(
-      parseJson(raw),
+      parseJson(raw.text),
       sender,
       dependencies.localAgentId,
       dependencies.nowMs(),
       dependencies.store,
     );
     if (accepted === null) {
-      return unavailable();
+      return denied();
     }
     const handled = await dependencies.handle(accepted.principal, accepted.body);
-    return publicResponse(handled) ?? unavailable();
+    return Object.freeze({
+      body: publicResponse(handled) ?? unavailable(),
+      abortUpload: false,
+    });
   } catch {
-    return unavailable();
+    return denied();
   }
 };
 
@@ -175,26 +187,28 @@ const contentLengthTooLarge = (value: unknown): boolean => {
   return !Number.isSafeInteger(length) || length > MAX_REMOTE_BODY_BYTES;
 };
 
-const readLimited = async (request: IncomingMessage, max: number): Promise<string | null> => {
+const readLimited = async (
+  request: IncomingMessage,
+  max: number,
+): Promise<Readonly<{ text: string | null; overflow: boolean }>> => {
   const chunks: Buffer[] = [];
   let total = 0;
   try {
     for await (const chunk of request) {
       const buffer = asBuffer(chunk);
       if (buffer === null) {
-        return null;
+        return { text: null, overflow: false };
       }
       total += buffer.length;
       if (total > max) {
-        request.destroy();
-        return null;
+        return { text: null, overflow: true };
       }
       chunks.push(buffer);
     }
   } catch {
-    return null;
+    return { text: null, overflow: false };
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return { text: Buffer.concat(chunks).toString("utf8"), overflow: false };
 };
 
 const asBuffer = (chunk: unknown): Buffer | null => {
@@ -247,10 +261,19 @@ const exact = (
   );
 };
 
-const writePublicJson = (response: ServerResponse, body: AvailabilityResponse): void => {
+const writePublicJson = (
+  response: ServerResponse,
+  body: AvailabilityResponse,
+  flushed?: () => void,
+): void => {
   const payload = JSON.stringify(body);
   response.statusCode = 200;
   response.setHeader("content-type", "application/json; charset=utf-8");
   response.setHeader("content-length", String(Buffer.byteLength(payload)));
-  response.end(payload);
+  if (flushed === undefined) {
+    response.end(payload);
+    return;
+  }
+  response.setHeader("connection", "close");
+  response.end(payload, flushed);
 };
