@@ -8,6 +8,7 @@ import {
 } from "../../src/modules/audit/index.js";
 
 const databaseUrl = process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "";
+const AUDIT_TABLE_LOCK = 81421003;
 const NOW = Date.parse("2026-10-08T12:00:00.000Z");
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -31,45 +32,50 @@ describe.skipIf(databaseUrl === "")("durable minimized audit log", () => {
   it("keeps a row at the cutoff for a second log and deletes the rest", async () => {
     pool = createPgPool(databaseUrl);
     await applyAuditSchema(pool);
-    const client = await pool.connect();
-    await client.query("TRUNCATE audit_records", []);
-    client.release();
+    const lock = await pool.connect();
+    await lock.query("SELECT pg_advisory_lock($1)", [AUDIT_TABLE_LOCK]);
+    try {
+      await lock.query("TRUNCATE audit_records", []);
 
-    const clock = { nowMs: () => NOW - RETENTION_MS };
-    const first = new PostgresAuditLog(pool, clock);
-    const saved = await first.append(operator, command("boundary"));
-    expect(saved.ok).toBe(true);
-    if (!saved.ok) {
-      throw new Error("fixture");
+      const clock = { nowMs: () => NOW - RETENTION_MS };
+      const first = new PostgresAuditLog(pool, clock);
+      const saved = await first.append(operator, command("boundary"));
+      expect(saved.ok).toBe(true);
+      if (!saved.ok) {
+        throw new Error("fixture");
+      }
+
+      const later = new PostgresAuditLog(pool, { nowMs: () => NOW });
+      const read = await later.read(operator);
+      expect(read.ok).toBe(true);
+      if (!read.ok) {
+        throw new Error("fixture");
+      }
+      expect(read.value).toEqual([saved.value]);
+
+      const fresh = await later.append(operator, command("fresh"));
+      expect(fresh.ok).toBe(true);
+      const afterAppend = await later.read(operator);
+      expect(afterAppend.ok).toBe(true);
+      if (!afterAppend.ok || !fresh.ok) {
+        throw new Error("fixture");
+      }
+      expect(afterAppend.value).toEqual([saved.value, fresh.value]);
+
+      const justAfter = new PostgresAuditLog(pool, { nowMs: () => NOW + 1 });
+      const dropped = await justAfter.read(operator);
+      expect(dropped.ok).toBe(true);
+      if (!dropped.ok) {
+        throw new Error("fixture");
+      }
+      expect(dropped.value).toEqual([fresh.value]);
+
+      expect(await justAfter.deleteAll(operator)).toEqual({ ok: true, value: true });
+      const empty = await new PostgresAuditLog(pool, { nowMs: () => NOW }).read(operator);
+      expect(empty).toEqual({ ok: true, value: [] });
+    } finally {
+      await lock.query("SELECT pg_advisory_unlock($1)", [AUDIT_TABLE_LOCK]);
+      lock.release();
     }
-
-    const later = new PostgresAuditLog(pool, { nowMs: () => NOW });
-    const read = await later.read(operator);
-    expect(read.ok).toBe(true);
-    if (!read.ok) {
-      throw new Error("fixture");
-    }
-    expect(read.value).toEqual([saved.value]);
-
-    const fresh = await later.append(operator, command("fresh"));
-    expect(fresh.ok).toBe(true);
-    const afterAppend = await later.read(operator);
-    expect(afterAppend.ok).toBe(true);
-    if (!afterAppend.ok || !fresh.ok) {
-      throw new Error("fixture");
-    }
-    expect(afterAppend.value).toEqual([saved.value, fresh.value]);
-
-    const justAfter = new PostgresAuditLog(pool, { nowMs: () => NOW + 1 });
-    const dropped = await justAfter.read(operator);
-    expect(dropped.ok).toBe(true);
-    if (!dropped.ok) {
-      throw new Error("fixture");
-    }
-    expect(dropped.value).toEqual([fresh.value]);
-
-    expect(await justAfter.deleteAll(operator)).toEqual({ ok: true, value: true });
-    const empty = await new PostgresAuditLog(pool, { nowMs: () => NOW }).read(operator);
-    expect(empty).toEqual({ ok: true, value: [] });
   });
 });
