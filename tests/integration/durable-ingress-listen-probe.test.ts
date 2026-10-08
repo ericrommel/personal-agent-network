@@ -27,6 +27,8 @@ describe.skipIf(!enabled)("durable ingress listener", () => {
     if (!from.ok || !to.ok) {
       throw new Error("fixture");
     }
+    const busyStart = process.env.PAN_BUSY_START ?? "";
+    const busyEnd = process.env.PAN_BUSY_END ?? "";
     const resources = await openDurableAvailabilityResources(
       required("PAN_RELATIONSHIP_DATABASE_URL"),
       {
@@ -36,6 +38,9 @@ describe.skipIf(!enabled)("durable ingress listener", () => {
         },
         agents: [from.value, to.value],
         localAgentId,
+        ...(busyStart === "" || busyEnd === ""
+          ? {}
+          : { context: { busyIntervals: [{ start: busyStart, end: busyEnd }] } }),
       },
     );
     const server = createRemoteHttpsServer(
