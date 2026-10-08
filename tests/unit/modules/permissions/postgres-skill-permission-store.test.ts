@@ -121,17 +121,21 @@ describe("PostgreSQL skill permission store", () => {
     const gate = scripted([]);
     const store = new PostgresSkillPermissionStore(gate.pool, { record() {} });
     const record = active();
-    const pending = store.insertActive({ ...record, status: "revoked" }, event());
+    const pending = store.insertDurablePermission({ ...record, status: "revoked" }, event());
     expect(pending).toBeInstanceOf(Promise);
     expect(await pending).toEqual(dependency);
     expect(
-      await store.insertActive({ kind: "nope" } as unknown as SkillPermission, event()),
+      await store.insertDurablePermission({ kind: "nope" } as unknown as SkillPermission, event()),
     ).toEqual(dependency);
-    expect(await store.revokeMatching(null, TO, record.id, event())).toEqual(notFoundCode);
-    expect(await store.revokeMatching(FROM, FROM, record.id, event())).toEqual(notFoundCode);
-    expect(await store.revokeMatching(FROM, TO, "not-an-id", event())).toEqual(notFoundCode);
-    expect(await store.findCurrent(null, TO)).toBeNull();
-    expect(await store.findCurrent(FROM, FROM)).toBeNull();
+    expect(await store.revokeDurablePermission(null, TO, record.id, event())).toEqual(notFoundCode);
+    expect(await store.revokeDurablePermission(FROM, FROM, record.id, event())).toEqual(
+      notFoundCode,
+    );
+    expect(await store.revokeDurablePermission(FROM, TO, "not-an-id", event())).toEqual(
+      notFoundCode,
+    );
+    expect(await store.findDurablePermission(null, TO)).toBeNull();
+    expect(await store.findDurablePermission(FROM, FROM)).toBeNull();
     expect(gate.queries).toEqual([]);
   });
 
@@ -148,7 +152,7 @@ describe("PostgreSQL skill permission store", () => {
       },
     });
 
-    expect(await store.insertActive(record, happened)).toBe(record);
+    expect(await store.insertDurablePermission(record, happened)).toBe(record);
     expect(recorded).toEqual([happened]);
     expect(seenAtSink).toEqual([
       "BEGIN",
@@ -182,14 +186,14 @@ describe("PostgreSQL skill permission store", () => {
         conflictSink += 1;
       },
     });
-    expect(await conflictStore.insertActive(record, event())).toEqual(conflictCode);
+    expect(await conflictStore.insertDurablePermission(record, event())).toEqual(conflictCode);
     expect(conflictSink).toBe(0);
     expect(conflicted.queries.at(-1)).toBe("ROLLBACK");
     expect(conflicted.queries).not.toContain("COMMIT");
 
     const nullCount = scripted([{ rowCount: null, rows: [] }]);
     const nullCountStore = new PostgresSkillPermissionStore(nullCount.pool, { record() {} });
-    expect(await nullCountStore.insertActive(record, event())).toEqual(conflictCode);
+    expect(await nullCountStore.insertDurablePermission(record, event())).toEqual(conflictCode);
     expect(nullCount.queries.at(-1)).toBe("ROLLBACK");
 
     const rolled = scripted([{ rowCount: 1, rows: [{ permission_id: record.id }] }]);
@@ -198,7 +202,7 @@ describe("PostgreSQL skill permission store", () => {
         throw new Error("sink down");
       },
     });
-    const rolledBack = await rollbackStore.insertActive(record, event());
+    const rolledBack = await rollbackStore.insertDurablePermission(record, event());
     expect(rolledBack).toEqual(dependency);
     expect(JSON.stringify(rolledBack)).not.toContain("sink down");
     expect(rolled.queries.at(-1)).toBe("ROLLBACK");
@@ -217,7 +221,7 @@ describe("PostgreSQL skill permission store", () => {
         recorded.push(value);
       },
     });
-    const saved = await store.revokeMatching(FROM, TO, record.id, happened);
+    const saved = await store.revokeDurablePermission(FROM, TO, record.id, happened);
     expect(saved).toMatchObject({
       kind: "skill-permission",
       id: record.id,
@@ -238,7 +242,7 @@ describe("PostgreSQL skill permission store", () => {
         throw new Error("sink down");
       },
     });
-    const kept = await sinkStore.revokeMatching(FROM, TO, record.id, event("revoke"));
+    const kept = await sinkStore.revokeDurablePermission(FROM, TO, record.id, event("revoke"));
     expect(kept).toMatchObject({ id: record.id, status: "revoked" });
     expect(sinkDown.queries).toContain("COMMIT");
     expect(sinkDown.queries).not.toContain("ROLLBACK");
@@ -250,35 +254,39 @@ describe("PostgreSQL skill permission store", () => {
         missingSink += 1;
       },
     });
-    expect(await missingStore.revokeMatching(FROM, TO, record.id, event())).toEqual(notFoundCode);
+    expect(await missingStore.revokeDurablePermission(FROM, TO, record.id, event())).toEqual(
+      notFoundCode,
+    );
     expect(missingSink).toBe(0);
     expect(missing.queries.at(-1)).toBe("ROLLBACK");
 
     const other = active("ASK");
     const mismatched = scripted([{ rows: [{ ...storedRow(record), permission_id: other.id }] }]);
     const mismatchedStore = new PostgresSkillPermissionStore(mismatched.pool, { record() {} });
-    expect(await mismatchedStore.revokeMatching(FROM, TO, record.id, event())).toEqual(
+    expect(await mismatchedStore.revokeDurablePermission(FROM, TO, record.id, event())).toEqual(
       notFoundCode,
     );
     expect(mismatched.queries.at(-1)).toBe("ROLLBACK");
 
     const stillActive = scripted([{ rows: [storedRow(record, "active")] }]);
     const stillActiveStore = new PostgresSkillPermissionStore(stillActive.pool, { record() {} });
-    expect(await stillActiveStore.revokeMatching(FROM, TO, record.id, event())).toEqual(
+    expect(await stillActiveStore.revokeDurablePermission(FROM, TO, record.id, event())).toEqual(
       notFoundCode,
     );
     expect(stillActive.queries).not.toContain("COMMIT");
 
     const corrupt = scripted([{ rows: [{ permission_id: record.id, status: "revoked" }] }]);
     const corruptStore = new PostgresSkillPermissionStore(corrupt.pool, { record() {} });
-    expect(await corruptStore.revokeMatching(FROM, TO, record.id, event())).toEqual(notFoundCode);
+    expect(await corruptStore.revokeDurablePermission(FROM, TO, record.id, event())).toEqual(
+      notFoundCode,
+    );
     expect(corrupt.queries.at(-1)).toBe("ROLLBACK");
 
     const broken = scripted([{ error: new Error("syntax error at skill_permission_records") }], {
       rollbackFails: true,
     });
     const brokenStore = new PostgresSkillPermissionStore(broken.pool, { record() {} });
-    const hidden = await brokenStore.insertActive(record, event());
+    const hidden = await brokenStore.insertDurablePermission(record, event());
     expect(hidden).toEqual(dependency);
     expect(JSON.stringify(hidden)).not.toContain("skill_permission_records");
     expect(broken.released()).toBe(1);
@@ -287,16 +295,23 @@ describe("PostgreSQL skill permission store", () => {
       { error: new Error("update failed on skill_permission_records") },
     ]);
     const revokeDownStore = new PostgresSkillPermissionStore(revokeDown.pool, { record() {} });
-    const revokeFailure = await revokeDownStore.revokeMatching(FROM, TO, record.id, event());
+    const revokeFailure = await revokeDownStore.revokeDurablePermission(
+      FROM,
+      TO,
+      record.id,
+      event(),
+    );
     expect(revokeFailure).toEqual(dependency);
     expect(JSON.stringify(revokeFailure)).not.toContain("skill_permission_records");
     expect(revokeDown.queries.at(-1)).toBe("ROLLBACK");
 
     const offline = scripted([], { connectFails: true });
     const offlineStore = new PostgresSkillPermissionStore(offline.pool, { record() {} });
-    expect(await offlineStore.insertActive(record, event())).toEqual(dependency);
-    expect(await offlineStore.revokeMatching(FROM, TO, record.id, event())).toEqual(dependency);
-    expect(await offlineStore.findCurrent(FROM, TO)).toBeNull();
+    expect(await offlineStore.insertDurablePermission(record, event())).toEqual(dependency);
+    expect(await offlineStore.revokeDurablePermission(FROM, TO, record.id, event())).toEqual(
+      dependency,
+    );
+    expect(await offlineStore.findDurablePermission(FROM, TO)).toBeNull();
     expect(offline.released()).toBe(0);
   });
 
@@ -316,7 +331,7 @@ describe("PostgreSQL skill permission store", () => {
       },
     ]);
     const store = new PostgresSkillPermissionStore(found.pool, { record() {} });
-    expect(await store.findCurrent(FROM, TO)).toEqual({
+    expect(await store.findDurablePermission(FROM, TO)).toEqual({
       kind: "skill-permission",
       id: record.id,
       fromAgentId: record.fromAgentId,
@@ -327,7 +342,7 @@ describe("PostgreSQL skill permission store", () => {
       effect: "DENY",
       status: "active",
     });
-    const revoked = await store.findCurrent(FROM, TO);
+    const revoked = await store.findDurablePermission(FROM, TO);
     expect(revoked).toMatchObject({ status: "revoked", kind: "skill-permission", effect: "DENY" });
     expect(Object.keys(revoked as object)).toEqual([
       "kind",
@@ -349,17 +364,17 @@ describe("PostgreSQL skill permission store", () => {
 
     const blank = scripted([{ rows: [] }, { rows: [null] }, { rows: [[]] }]);
     const blankStore = new PostgresSkillPermissionStore(blank.pool, { record() {} });
-    expect(await blankStore.findCurrent(FROM, TO)).toBeNull();
-    expect(await blankStore.findCurrent(FROM, TO)).toBeNull();
-    expect(await blankStore.findCurrent(FROM, TO)).toBeNull();
+    expect(await blankStore.findDurablePermission(FROM, TO)).toBeNull();
+    expect(await blankStore.findDurablePermission(FROM, TO)).toBeNull();
+    expect(await blankStore.findDurablePermission(FROM, TO)).toBeNull();
 
     const corrupt = scripted([{ rows: [{ permission_id: record.id, status: "active" }] }]);
     const corruptStore = new PostgresSkillPermissionStore(corrupt.pool, { record() {} });
-    expect(await corruptStore.findCurrent(FROM, TO)).toBeNull();
+    expect(await corruptStore.findDurablePermission(FROM, TO)).toBeNull();
 
     const queryDown = scripted([{ error: new Error("select down") }]);
     const queryStore = new PostgresSkillPermissionStore(queryDown.pool, { record() {} });
-    expect(await queryStore.findCurrent(FROM, TO)).toBeNull();
+    expect(await queryStore.findDurablePermission(FROM, TO)).toBeNull();
     expect(queryDown.released()).toBe(1);
 
     const schema = scripted([{ rowCount: 0, rows: [] }]);

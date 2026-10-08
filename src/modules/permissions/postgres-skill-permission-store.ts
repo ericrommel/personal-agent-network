@@ -6,7 +6,7 @@ import {
   permissionKey,
   type SkillPermission,
 } from "./domain/skill-permission.js";
-import type { SkillPermissionEventSink } from "./ports.js";
+import type { SkillPermissionEventSink, SkillPermissionStorePort } from "./ports.js";
 
 const dependencyFailure = (): SkillPermissionError =>
   Object.freeze({ code: "SKILL_PERMISSION_DEPENDENCY_FAILED" });
@@ -20,8 +20,10 @@ const notFound = (): SkillPermissionError => Object.freeze({ code: "SKILL_PERMIS
  * The table stores the permission effect because that effect is the only
  * ALLOW/ASK/DENY source. It stores no kind, email, profile, calendar, boolean,
  * secret, or event. `kind` is rebuilt on read. A failed sink rolls back an
- * insert and does not undo a committed revoke. These async methods are not the
- * synchronous store port, and SkillPermissionService is not wired to this class.
+ * insert and does not undo a committed revoke. The method names differ from
+ * SkillPermissionStorePort. Sharing those names would make this class
+ * assignable to the port, and the synchronous service would commit a revoke
+ * without calling invalidateUnreleased. SkillPermissionService is not wired here.
  */
 export const SKILL_PERMISSION_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS skill_permission_records (
   pair_key text PRIMARY KEY,
@@ -108,7 +110,10 @@ export class PostgresSkillPermissionStore {
     this.#events = events;
   }
 
-  async insertActive(record: SkillPermission, event: SkillPermissionEvent): Promise<unknown> {
+  async insertDurablePermission(
+    record: SkillPermission,
+    event: SkillPermissionEvent,
+  ): Promise<unknown> {
     if (!isSkillPermission(record) || record.status !== "active") {
       return dependencyFailure();
     }
@@ -136,7 +141,7 @@ export class PostgresSkillPermissionStore {
     }
   }
 
-  async revokeMatching(
+  async revokeDurablePermission(
     fromAgentId: unknown,
     toAgentId: unknown,
     permissionId: unknown,
@@ -167,7 +172,7 @@ export class PostgresSkillPermissionStore {
     return revoked;
   }
 
-  async findCurrent(fromAgentId: unknown, toAgentId: unknown): Promise<unknown> {
+  async findDurablePermission(fromAgentId: unknown, toAgentId: unknown): Promise<unknown> {
     const pairKey = permissionKey(fromAgentId, toAgentId);
     if (pairKey === null) {
       return null;
@@ -266,3 +271,10 @@ const toSkillPermission = (row: unknown): SkillPermission | null => {
   });
   return isSkillPermission(mapped) ? mapped : null;
 };
+
+type _NotSyncPermissionPort = PostgresSkillPermissionStore extends SkillPermissionStorePort
+  ? never
+  : true;
+
+const _notSyncPermissionPort: _NotSyncPermissionPort = true;
+void _notSyncPermissionPort;

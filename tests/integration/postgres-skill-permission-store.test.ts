@@ -54,23 +54,23 @@ describe.skipIf((process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "") === "")(
           throw new Error("sink down");
         },
       });
-      expect(await sinkDown.insertActive(uncommitted, event("grant"))).toEqual({
+      expect(await sinkDown.insertDurablePermission(uncommitted, event("grant"))).toEqual({
         code: "SKILL_PERMISSION_DEPENDENCY_FAILED",
       });
-      expect(await sinkDown.findCurrent(FROM, TO)).toBeNull();
+      expect(await sinkDown.findDurablePermission(FROM, TO)).toBeNull();
 
       const created = fixture("ALLOW");
       const first = new PostgresSkillPermissionStore(pool, { record() {} });
-      expect(await first.insertActive(created, event("grant"))).toMatchObject({
+      expect(await first.insertDurablePermission(created, event("grant"))).toMatchObject({
         id: created.id,
         effect: "ALLOW",
         status: "active",
       });
       const conflicting = fixture("DENY");
-      expect(await first.insertActive(conflicting, event("grant"))).toEqual({
+      expect(await first.insertDurablePermission(conflicting, event("grant"))).toEqual({
         code: "SKILL_PERMISSION_CONFLICT",
       });
-      expect(await first.findCurrent(FROM, TO)).toMatchObject({
+      expect(await first.findDurablePermission(FROM, TO)).toMatchObject({
         id: created.id,
         effect: "ALLOW",
         status: "active",
@@ -81,14 +81,16 @@ describe.skipIf((process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "") === "")(
           throw new Error("sink down");
         },
       });
-      expect(await revoking.revokeMatching(FROM, TO, created.id, event("revoke"))).toMatchObject({
+      expect(
+        await revoking.revokeDurablePermission(FROM, TO, created.id, event("revoke")),
+      ).toMatchObject({
         id: created.id,
         effect: "ALLOW",
         status: "revoked",
       });
 
       const restarted = new PostgresSkillPermissionStore(pool, { record() {} });
-      expect(await restarted.findCurrent(FROM, TO)).toMatchObject({
+      expect(await restarted.findDurablePermission(FROM, TO)).toMatchObject({
         id: created.id,
         kind: "skill-permission",
         effect: "ALLOW",
@@ -96,13 +98,13 @@ describe.skipIf((process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "") === "")(
       });
 
       const replacement = fixture("ASK");
-      expect(await restarted.insertActive(replacement, event("grant"))).toMatchObject({
+      expect(await restarted.insertDurablePermission(replacement, event("grant"))).toMatchObject({
         id: replacement.id,
         effect: "ASK",
         status: "active",
       });
       const secondConflict = fixture("DENY");
-      expect(await restarted.insertActive(secondConflict, event("grant"))).toEqual({
+      expect(await restarted.insertDurablePermission(secondConflict, event("grant"))).toEqual({
         code: "SKILL_PERMISSION_CONFLICT",
       });
     });

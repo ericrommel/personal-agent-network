@@ -16,7 +16,7 @@ This slice adds `migrations/0004_skill_permissions.sql`,
 `PostgresSkillPermissionStore`, the unit and integration tests, the exports
 those tests need, and this plan.
 
-The async class does not implement `SkillPermissionStorePort`.
+The async class does not implement `SkillPermissionStorePort`. Its method names differ from that port so a Promise cannot be passed where the service expects `unknown`. A shared name would let a revoke commit without `invalidateUnreleased`.
 `SkillPermissionService` is not wired to it. Wiring stays deferred because
 revoke still calls `UnreleasedApprovalPort.invalidateUnreleased` synchronously.
 A fire-and-forget wrapper would miss D4. The follow-up that awaits invalidation
