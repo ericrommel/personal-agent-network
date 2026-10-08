@@ -4,6 +4,10 @@
 
 Preparation note for Issue #9. It is not implementation authorization, not an ADR, and not a request to close a product decision. It does not move the module to Ready for PO or Ready for Development.
 
+## Later resolution, 2026-10-08
+
+The Human Product Owner authorized a minimal HTTPS mutual-TLS ingress and named the MVP replay parameters on Issue #13. ADR-0007 records a 5-minute maximum window, 30 seconds of skew, and a single-use envelope `messageId`. The sender remains the certificate URI SAN. The sections below stay the earlier preparation record. Sentences there that leave the window unset are that record, not an open gate.
+
 Research that may exist only on Issue #9 is not a contract. This note does not adopt it.
 
 Accepted constraints used here:
