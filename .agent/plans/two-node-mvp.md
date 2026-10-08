@@ -17,7 +17,7 @@ Out of scope: harness code, a replay window, a product UI, Human Product Owner a
 
 ## Requirements and acceptance criteria
 
-The suite still owes AC-MSG-001, the PostgreSQL restart observation from the PO-REL-6 durability gate, and durable single-use approval plus audit reconstruction under ADR-0004. Component tests already exercise AC-AUTH-001, AC-AUTH-002, AC-APR-001, AC-APR-002, AC-REV-001, AC-PRV-001, and AC-AUD-001 inside one process.
+The suite still owes AC-MSG-001. Component tests exercise AC-AUTH-001, AC-AUTH-002, AC-APR-001, AC-APR-002, AC-REV-001, AC-PRV-001, and AC-AUD-001 inside one process. PostgreSQL adapters and two-process probes cover relationship revoke, permission invalidation, approval spend, expiry, and advertisement withdraw. Those probes do not satisfy AC-MSG-001 and do not accept Issue #13. ADR-0004 still excludes an all-in-memory run.
 
 ## Context and affected components
 
@@ -35,8 +35,8 @@ Acceptance must show a loaded revoked row, uniform denial, no boolean in the aud
 
 1. Publish this strategy.
 2. Finish the process-local composition and the argv adapter as probes.
-3. Add durable approval storage after PR #62 merges, then wire it without a fire-and-forget invalidation.
-4. Add the two-process restart observation.
+3. Durable approval, audit, permission, and advertisement stores are injected. The node does not open a pool. Do not add a fire-and-forget invalidation.
+4. Keep adding bounded two-process observations. Do not treat them as the demonstration.
 5. Add replay rejection only after the window is chosen in a later engineering decision.
 
 ## Developer tests
@@ -65,6 +65,7 @@ No new Reserved Product Decision. The unset replay window blocks only the replay
 ## Discoveries and decision log
 
 - 2026-10-08: Do not encode a replay number in an acceptance test from this plan.
+- 2026-10-08: Durable adapters and two-process probes are on main. The two-process restart evidence box stays open because it is the demonstration, not those probes.
 
 ## Handoff and completion evidence
 
