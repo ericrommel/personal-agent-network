@@ -126,8 +126,8 @@ describe.skipIf(!enabled)("fresh process loads the composed deny", () => {
         throw new Error("fixture");
       }
       expect(after.value.map((event) => event?.requestId).sort()).toEqual([
-        CHILD_REQUEST,
         PARENT_REQUEST,
+        CHILD_REQUEST,
       ]);
       expect(after.value.every((event) => event?.outcome === "deny")).toBe(true);
       expect(JSON.stringify(after.value)).not.toContain("availability_boolean");

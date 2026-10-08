@@ -206,8 +206,8 @@ const runRestartProbe = async (relationshipPool: SqlPool, auditPool: AuditPool):
     throw new Error("fixture");
   }
   expect(seen.value.map((event) => event?.requestId).sort()).toEqual([
-    "req-composed-child",
     REQUEST_ID,
+    "req-composed-child",
   ]);
   expect(
     seen.value.every((event) => event?.category === "decision" && event.outcome === "deny"),
