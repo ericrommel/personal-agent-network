@@ -41,6 +41,9 @@ const ORIGIN = Date.parse("2026-10-08T12:00:00.000Z");
 const START = new Date(ORIGIN + 60_000).toISOString();
 const END = new Date(ORIGIN + 60_000 + 3_600_000).toISOString();
 const SAN = `urn:pan:agent:${FROM}`;
+const RECIPIENT_SAN = `urn:pan:agent:${TO}`;
+const BUSY_START = new Date(ORIGIN + 30 * 60 * 1000).toISOString();
+const BUSY_END = new Date(ORIGIN + 45 * 60 * 1000).toISOString();
 const LOCKS = [81421001, 81421002, 81421003, 81421004, 81421005, 81421006];
 
 const relationshipSource = {
@@ -94,6 +97,8 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
   });
 
   it("denies and releases only the public object across restart", async () => {
+    expect(Date.parse(BUSY_START)).toBeGreaterThan(Date.parse(START));
+    expect(Date.parse(BUSY_END)).toBeLessThan(Date.parse(END));
     const directory = mkdtempSync(join(tmpdir(), "pan-durable-ingress-"));
     const openssl = (args: string[]) => {
       execFileSync("openssl", args, { cwd: directory, stdio: "pipe" });
@@ -179,6 +184,39 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       "-copy_extensions",
       "copy",
     ]);
+    openssl([
+      "req",
+      "-newkey",
+      "rsa:2048",
+      "-keyout",
+      "other.key",
+      "-out",
+      "other.csr",
+      "-nodes",
+      "-subj",
+      "/CN=pan-recipient",
+      "-addext",
+      `subjectAltName=URI:${RECIPIENT_SAN}`,
+      "-addext",
+      "extendedKeyUsage=clientAuth",
+    ]);
+    openssl([
+      "x509",
+      "-req",
+      "-in",
+      "other.csr",
+      "-CA",
+      "ca.crt",
+      "-CAkey",
+      "ca.key",
+      "-CAcreateserial",
+      "-out",
+      "other.crt",
+      "-days",
+      "1",
+      "-copy_extensions",
+      "copy",
+    ]);
     const file = (name: string) => readFileSync(join(directory, name));
     const resources = await openDurableAvailabilityResources(databaseUrl, {
       clock,
@@ -189,6 +227,7 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
     const lock = await admin.connect();
     let generation = 0;
     const children: ChildProcess[] = [];
+    const outputs: Array<() => string> = [];
     try {
       for (const id of LOCKS) {
         await lock.query("SELECT pg_advisory_lock($1)", [id]);
@@ -214,17 +253,17 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       if (!created.ok) {
         throw new Error("fixture");
       }
-      expect(
-        (
-          await resources.node.advertisements.advertise(advertisementSource, {
-            contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
-            action: "advertise",
-            correlationId: "corr-demo-ad",
-            agentId: TO,
-            skillVersion: AVAILABILITY_SKILL_VERSION_V1,
-          })
-        ).ok,
-      ).toBe(true);
+      const advertised = await resources.node.advertisements.advertise(advertisementSource, {
+        contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
+        action: "advertise",
+        correlationId: "corr-demo-ad",
+        agentId: TO,
+        skillVersion: AVAILABILITY_SKILL_VERSION_V1,
+      });
+      expect(advertised.ok).toBe(true);
+      if (!advertised.ok) {
+        throw new Error("fixture");
+      }
       const allow = await resources.node.permissions.grant(permissionSource, {
         contract: SKILL_PERMISSION_COMMAND_CONTRACT_V1,
         action: "grant",
@@ -266,9 +305,12 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
               PAN_TLS_KEY: join(directory, "server.key"),
               PAN_TLS_CERT: join(directory, "server.crt"),
               PAN_TLS_CA: join(directory, "ca.crt"),
+              PAN_BUSY_START: BUSY_START,
+              PAN_BUSY_END: BUSY_END,
             },
           },
         );
+        outputs.push(() => text);
         children.push(child);
         child.stdout?.on("data", (chunk: Buffer) => {
           text += chunk.toString("utf8");
@@ -300,6 +342,10 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
         messageId: string,
         requestId: string,
         patch?: (value: Record<string, unknown>) => void,
+        material: Readonly<{ cert: string; key: string }> = {
+          cert: "client.crt",
+          key: "client.key",
+        },
       ) => {
         const bodyRecord: Record<string, unknown> = {
           contract: AVAILABILITY_REQUEST_CONTRACT_V1,
@@ -329,8 +375,8 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
               path: "/pan/availability/v1",
               method: "POST",
               ca: file("ca.crt"),
-              cert: file("client.crt"),
-              key: file("client.key"),
+              cert: file(material.cert),
+              key: file(material.key),
               rejectUnauthorized: true,
               agent: false,
               headers: {
@@ -355,15 +401,28 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       };
 
       const publicObject = (body: string) => {
+        expect(body).not.toContain(BUSY_START);
+        expect(body).not.toContain(BUSY_END);
+        expect(body).not.toContain("ALLOW");
+        expect(body).not.toContain("ASK");
+        expect(body).not.toContain("DENY");
         const parsed = JSON.parse(body) as Record<string, unknown>;
         expect(Object.keys(parsed)).toHaveLength(1);
         return parsed;
+      };
+      const unavailableAudits = async () => {
+        const seen = await resources.audit.read(operator);
+        expect(seen.ok).toBe(true);
+        if (!seen.ok) {
+          throw new Error("fixture");
+        }
+        return seen.value.filter((event) => event?.requestId === "unavailable");
       };
 
       let listener = await start();
       const allowed = await post(listener.port, "msg-allow", "req-allow");
       expect(allowed.status).toBe(200);
-      expect(publicObject(allowed.body)).toEqual({ result: true });
+      expect(publicObject(allowed.body)).toEqual({ result: false });
       expect(publicObject((await post(listener.port, "msg-allow", "req-allow")).body)).toEqual({
         outcome: "unavailable",
       });
@@ -409,6 +468,69 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       expect(JSON.stringify(ingressDenial)).not.toContain(END);
       expect(JSON.stringify(ingressDenial)).not.toContain("msg-allow");
 
+      const freshnessBefore = (await unavailableAudits()).length;
+      expect(
+        publicObject(
+          (
+            await post(listener.port, "msg-stale", "req-stale", (value) => {
+              value.issuedAt = new Date(ORIGIN - 32_000).toISOString();
+              value.expiresAt = new Date(ORIGIN - 31_000).toISOString();
+            })
+          ).body,
+        ),
+      ).toEqual({ outcome: "unavailable" });
+      expect(
+        publicObject(
+          (
+            await post(listener.port, "msg-future", "req-future", (value) => {
+              value.issuedAt = new Date(ORIGIN + 30_001).toISOString();
+              value.expiresAt = new Date(ORIGIN + 31_001).toISOString();
+            })
+          ).body,
+        ),
+      ).toEqual({ outcome: "unavailable" });
+      expect(await resources.node.approvals.findByRequestId("req-stale")).toBeNull();
+      expect(await resources.node.approvals.findByRequestId("req-future")).toBeNull();
+      const freshnessAudits = await unavailableAudits();
+      expect(freshnessAudits.length).toBe(freshnessBefore + 2);
+      expect(JSON.stringify(freshnessAudits)).not.toContain("msg-stale");
+      expect(JSON.stringify(freshnessAudits)).not.toContain("msg-future");
+      expect(JSON.stringify(freshnessAudits)).not.toContain(BUSY_START);
+      expect(JSON.stringify(freshnessAudits)).not.toContain(START);
+
+      const senderResponse = await post(listener.port, "msg-sender", "req-sender", undefined, {
+        cert: "other.crt",
+        key: "other.key",
+      });
+      expect(senderResponse.status).toBe(200);
+      expect(publicObject(senderResponse.body)).toEqual({ outcome: "unavailable" });
+      expect(await resources.node.approvals.findByRequestId("req-sender")).toBeNull();
+      expect(await resources.node.relationships.readActive(FROM, TO)).toBe(true);
+      expect(await resources.node.permissions.readSnapshot(FROM, TO)).toMatchObject({
+        decision: "ALLOW",
+      });
+      const senderAudit = await resources.audit.read(operator);
+      expect(senderAudit.ok).toBe(true);
+      if (!senderAudit.ok) {
+        throw new Error("fixture");
+      }
+      const senderEvent = senderAudit.value.find((event) => event?.requestId === "req-sender");
+      expect(senderEvent).toMatchObject({
+        kind: "audit-event",
+        category: "decision",
+        outcome: "deny",
+      });
+      expect(Object.keys(senderEvent ?? {}).sort()).toEqual([
+        "category",
+        "id",
+        "kind",
+        "outcome",
+        "recordedAt",
+        "requestId",
+      ]);
+      expect(JSON.stringify(senderEvent)).not.toContain(BUSY_START);
+      expect(JSON.stringify(senderEvent)).not.toContain("ALLOW");
+
       expect(
         (
           await resources.node.permissions.revoke(permissionSource, {
@@ -443,7 +565,7 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       await listener.stop();
       listener = await start();
       expect(publicObject((await post(listener.port, "msg-release", "req-ask")).body)).toEqual({
-        result: true,
+        result: false,
       });
       expect(publicObject((await post(listener.port, "msg-release", "req-ask")).body)).toEqual({
         outcome: "unavailable",
@@ -560,8 +682,75 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       });
       const restoredResponse = await post(listener.port, "msg-allow-again", "req-allow-again");
       expect(restoredResponse.status).toBe(200);
-      expect(publicObject(restoredResponse.body)).toEqual({ result: true });
+      expect(publicObject(restoredResponse.body)).toEqual({ result: false });
       expect(await resources.node.approvals.findByRequestId("req-allow-again")).toBeNull();
+      expect(
+        (
+          await resources.node.advertisements.withdraw(advertisementSource, {
+            contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
+            action: "withdraw",
+            correlationId: "corr-demo-ad-withdraw",
+            agentId: TO,
+            skillVersion: AVAILABILITY_SKILL_VERSION_V1,
+            advertisementId: advertised.value.id,
+          })
+        ).ok,
+      ).toBe(true);
+      expect(
+        await resources.node.advertisements.readAdvertised(TO, AVAILABILITY_SKILL_VERSION_V1),
+      ).toBe(false);
+      expect(await resources.node.relationships.readActive(FROM, TO)).toBe(true);
+      expect(await resources.node.permissions.readSnapshot(FROM, TO)).toMatchObject({
+        decision: "ALLOW",
+      });
+      await listener.stop();
+      listener = await start();
+      const withdrawnResponse = await post(listener.port, "msg-ad-down", "req-ad-down");
+      expect(withdrawnResponse.status).toBe(200);
+      expect(publicObject(withdrawnResponse.body)).toEqual({ outcome: "unavailable" });
+      expect(await resources.node.approvals.findByRequestId("req-ad-down")).toBeNull();
+      const withdrawnAudit = await resources.audit.read(operator);
+      expect(withdrawnAudit.ok).toBe(true);
+      if (!withdrawnAudit.ok) {
+        throw new Error("fixture");
+      }
+      const withdrawnEvent = withdrawnAudit.value.find(
+        (event) => event?.requestId === "req-ad-down",
+      );
+      expect(withdrawnEvent).toMatchObject({
+        kind: "audit-event",
+        category: "decision",
+        outcome: "deny",
+        requestId: "req-ad-down",
+      });
+      expect(Object.keys(withdrawnEvent ?? {}).sort()).toEqual([
+        "category",
+        "id",
+        "kind",
+        "outcome",
+        "recordedAt",
+        "requestId",
+      ]);
+      expect(JSON.stringify(withdrawnEvent)).not.toContain(START);
+      expect(JSON.stringify(withdrawnEvent)).not.toContain(END);
+      expect(JSON.stringify(withdrawnEvent)).not.toContain(BUSY_START);
+      expect(JSON.stringify(withdrawnEvent)).not.toContain(BUSY_END);
+      expect(JSON.stringify(withdrawnEvent)).not.toContain("ALLOW");
+      expect(JSON.stringify(withdrawnEvent)).not.toContain("withdrawn");
+      expect(
+        (
+          await resources.node.advertisements.advertise(advertisementSource, {
+            contract: SKILL_ADVERTISEMENT_COMMAND_CONTRACT_V1,
+            action: "advertise",
+            correlationId: "corr-demo-ad-again",
+            agentId: TO,
+            skillVersion: AVAILABILITY_SKILL_VERSION_V1,
+          })
+        ).ok,
+      ).toBe(true);
+      expect(
+        await resources.node.advertisements.readAdvertised(TO, AVAILABILITY_SKILL_VERSION_V1),
+      ).toBe(true);
       expect(
         (
           await resources.node.relationships.revoke(relationshipSource, {
@@ -599,6 +788,23 @@ describe.skipIf(databaseUrl === "")("two-process mutual-TLS availability", () =>
       expect(JSON.stringify(revokedEvent)).not.toContain(START);
       expect(JSON.stringify(revokedEvent)).not.toContain(END);
       expect(JSON.stringify(revokedEvent)).not.toContain("ALLOW");
+      expect(JSON.stringify(revokedEvent)).not.toContain(BUSY_START);
+      expect(JSON.stringify(revokedEvent)).not.toContain(BUSY_END);
+      const recorded = await resources.audit.read(operator);
+      expect(recorded.ok).toBe(true);
+      if (!recorded.ok) {
+        throw new Error("fixture");
+      }
+      const recordedText = JSON.stringify(recorded.value);
+      expect(recordedText).not.toContain(BUSY_START);
+      expect(recordedText).not.toContain(BUSY_END);
+      expect(recordedText).not.toContain("false");
+      expect(recordedText).not.toContain("true");
+      for (const output of outputs) {
+        const text = output();
+        expect(text).not.toContain(BUSY_START);
+        expect(text).not.toContain(BUSY_END);
+      }
       await listener.stop();
     } finally {
       for (const child of children) {
