@@ -89,7 +89,7 @@ export class SkillPermissionService {
 
   async readSnapshot(fromAgentId: unknown, toAgentId: unknown): Promise<PermissionSnapshot | null> {
     try {
-      const found = this.#store.findCurrent(fromAgentId, toAgentId);
+      const found = await this.#store.findCurrent(fromAgentId, toAgentId);
       if (!isSkillPermission(found) || found.status !== "active") {
         return null;
       }
@@ -104,7 +104,7 @@ export class SkillPermissionService {
       ) {
         return null;
       }
-      const current = this.#store.findCurrent(fromAgentId, toAgentId);
+      const current = await this.#store.findCurrent(fromAgentId, toAgentId);
       if (!isSkillPermission(current) || current.status !== "active" || current.id !== found.id) {
         return null;
       }
@@ -169,7 +169,7 @@ export class SkillPermissionService {
       parsed.toAgentId,
       parsed.effect as PermissionEffect,
     );
-    const stored = this.#store.insertActive(
+    const stored = await this.#store.insertActive(
       created,
       acceptedEvent(correlationId, sourceKey, "grant"),
     );
@@ -188,7 +188,9 @@ export class SkillPermissionService {
     correlationId: string,
     sourceKey: string,
   ): Promise<Result<SkillPermission, SkillPermissionError>> {
-    const stored = this.#store.revokeMatching(
+    // A Promise is not a permission. Waiting here keeps a durable revoke from
+    // committing while this method reports failure and skips invalidation.
+    const stored = await this.#store.revokeMatching(
       parsed.fromAgentId,
       parsed.toAgentId,
       parsed.permissionId,

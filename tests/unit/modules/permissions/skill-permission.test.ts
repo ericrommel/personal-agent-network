@@ -451,4 +451,210 @@ describe("skill permission", () => {
     expect(settled).toBe(true);
     expect(store.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "revoked" });
   });
+
+  it("does not grant until insertActive settles", async () => {
+    let releaseInsert: () => void = () => {};
+    const insertGate = new Promise<void>((resolve) => {
+      releaseInsert = resolve;
+    });
+    const memory = new InMemorySkillPermissionStore({ record() {} });
+    let insertStarted = false;
+    const service = new SkillPermissionService({
+      events: { record() {} },
+      store: {
+        insertActive(record, event) {
+          insertStarted = true;
+          return insertGate.then(() => memory.insertActive(record, event));
+        },
+        revokeMatching(from, to, permissionId, event) {
+          return memory.revokeMatching(from, to, permissionId, event);
+        },
+        findCurrent(from, to) {
+          return memory.findCurrent(from, to);
+        },
+      },
+      approvals: silentApprovals,
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    let settled = false;
+    const pending = service.grant(source(), grantCommand("ALLOW")).then((result) => {
+      settled = true;
+      return result;
+    });
+    // A store promise that is not awaited is a failed shape on later microtasks.
+    // A macrotask runs only after that chain.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(insertStarted).toBe(true);
+    expect(settled).toBe(false);
+    expect(memory.findCurrent(FROM, TO)).toBeNull();
+    releaseInsert();
+    const granted = unwrap(await pending);
+    expect(settled).toBe(true);
+    expect(granted.status).toBe("active");
+    expect(await service.readSnapshot(FROM, TO)).toEqual({
+      decision: "ALLOW",
+      purpose: AVAILABILITY_PURPOSE_V1,
+      scope: AVAILABILITY_SCOPE_V1,
+    });
+  });
+
+  it("does not revoke or invalidate until revokeMatching settles", async () => {
+    let releaseRevoke: () => void = () => {};
+    const revokeGate = new Promise<void>((resolve) => {
+      releaseRevoke = resolve;
+    });
+    const memory = new InMemorySkillPermissionStore({ record() {} });
+    let revokeStarted = false;
+    const invalidated: string[] = [];
+    const service = new SkillPermissionService({
+      events: { record() {} },
+      store: {
+        insertActive(record, event) {
+          return memory.insertActive(record, event);
+        },
+        revokeMatching(from, to, permissionId, event) {
+          revokeStarted = true;
+          return revokeGate.then(() => memory.revokeMatching(from, to, permissionId, event));
+        },
+        findCurrent(from, to) {
+          return memory.findCurrent(from, to);
+        },
+      },
+      approvals: {
+        invalidateUnreleased(from, to) {
+          invalidated.push(`${from}>${to}`);
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    const granted = unwrap(await service.grant(source(), grantCommand("ASK")));
+    let settled = false;
+    const pending = service.revoke(source(), revokeCommand(granted.id)).then((result) => {
+      settled = true;
+      return result;
+    });
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(revokeStarted).toBe(true);
+    expect(settled).toBe(false);
+    expect(invalidated).toEqual([]);
+    expect(memory.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "active" });
+    releaseRevoke();
+    expect((await pending).ok).toBe(true);
+    expect(settled).toBe(true);
+    expect(invalidated).toEqual([`${FROM}>${TO}`]);
+    expect(memory.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "revoked" });
+  });
+
+  it("does not report a snapshot until findCurrent settles", async () => {
+    let releaseFind: () => void = () => {};
+    const findGate = new Promise<void>((resolve) => {
+      releaseFind = resolve;
+    });
+    const memory = new InMemorySkillPermissionStore({ record() {} });
+    let findStarted = false;
+    const service = new SkillPermissionService({
+      events: { record() {} },
+      store: {
+        insertActive(record, event) {
+          return memory.insertActive(record, event);
+        },
+        revokeMatching(from, to, permissionId, event) {
+          return memory.revokeMatching(from, to, permissionId, event);
+        },
+        findCurrent(from, to) {
+          findStarted = true;
+          return findGate.then(() => memory.findCurrent(from, to));
+        },
+      },
+      approvals: silentApprovals,
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    unwrap(await service.grant(source(), grantCommand("ALLOW")));
+    findStarted = false;
+    let settled = false;
+    const pending = service.readSnapshot(FROM, TO).then((result) => {
+      settled = true;
+      return result;
+    });
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(findStarted).toBe(true);
+    expect(settled).toBe(false);
+    releaseFind();
+    expect(await pending).toEqual({
+      decision: "ALLOW",
+      purpose: AVAILABILITY_PURPOSE_V1,
+      scope: AVAILABILITY_SCOPE_V1,
+    });
+    expect(settled).toBe(true);
+  });
+
+  it("fails closed when a store promise rejects and does not invalidate", async () => {
+    const invalidated: string[] = [];
+    const rejecting = new SkillPermissionService({
+      events: { record() {} },
+      store: {
+        insertActive: () => Promise.reject(new Error("insert down")),
+        revokeMatching: () => Promise.reject(new Error("revoke down")),
+        findCurrent: () => Promise.reject(new Error("find down")),
+      },
+      approvals: {
+        invalidateUnreleased(from, to) {
+          invalidated.push(`${from}>${to}`);
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    expect(await rejecting.readSnapshot(FROM, TO)).toBeNull();
+    expect(await rejecting.grant(source(), grantCommand("ALLOW"))).toEqual(
+      code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
+    );
+    const missingId = unwrap(createSkillPermission(FROM, TO, "ALLOW")).id;
+    expect(await rejecting.revoke(source(), revokeCommand(missingId))).toEqual(
+      code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
+    );
+    expect(invalidated).toEqual([]);
+
+    const memory = new InMemorySkillPermissionStore({ record() {} });
+    const mixed = new SkillPermissionService({
+      events: { record() {} },
+      store: {
+        insertActive(record, event) {
+          return memory.insertActive(record, event);
+        },
+        revokeMatching: () => Promise.reject(new Error("revoke down")),
+        findCurrent(from, to) {
+          return memory.findCurrent(from, to);
+        },
+      },
+      approvals: {
+        invalidateUnreleased(from, to) {
+          invalidated.push(`${from}>${to}`);
+        },
+      },
+      parties: {
+        findAgent: async (id) => [agent(FROM), agent(TO)].find((party) => party.id === id) ?? null,
+      },
+    });
+    const granted = unwrap(await mixed.grant(source(), grantCommand("ALLOW")));
+    expect(await mixed.revoke(source(), revokeCommand(granted.id))).toEqual(
+      code("SKILL_PERMISSION_DEPENDENCY_FAILED"),
+    );
+    expect(invalidated).toEqual([]);
+    expect(await mixed.readSnapshot(FROM, TO)).toMatchObject({ decision: "ALLOW" });
+    expect(memory.findCurrent(FROM, TO)).toMatchObject({ id: granted.id, status: "active" });
+  });
 });
