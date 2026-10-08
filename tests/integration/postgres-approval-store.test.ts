@@ -22,6 +22,7 @@ import {
 // and does not invent a database URL or password.
 
 const databaseUrl = process.env.PAN_RELATIONSHIP_DATABASE_URL ?? "";
+const APPROVAL_TABLE_LOCK = 81421002;
 const FROM = "pan_agent_11111111-1111-4111-8111-111111111111";
 const TO = "pan_agent_22222222-2222-4222-8222-222222222222";
 const CORRUPT_ID = "pan_approval_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -77,6 +78,7 @@ const totalOf = (rows: readonly unknown[]): number => {
 
 describe.skipIf(databaseUrl === "")("durable approval records", () => {
   let pool: SqlPool | undefined;
+  let lock: Awaited<ReturnType<SqlPool["connect"]>> | undefined;
 
   const usePool = (): SqlPool => {
     if (pool === undefined) {
@@ -89,15 +91,23 @@ describe.skipIf(databaseUrl === "")("durable approval records", () => {
     pool = createPgPool(databaseUrl);
     await applyApprovalSchema(pool);
     await applyApprovalSchema(pool);
-    const client = await pool.connect();
+    lock = await pool.connect();
+    await lock.query("SELECT pg_advisory_lock($1)", [APPROVAL_TABLE_LOCK]);
     try {
-      await client.query("TRUNCATE approval_records", []);
-    } finally {
-      client.release();
+      await lock.query("TRUNCATE approval_records", []);
+    } catch (error) {
+      await lock.query("SELECT pg_advisory_unlock($1)", [APPROVAL_TABLE_LOCK]);
+      lock.release();
+      lock = undefined;
+      throw error;
     }
   });
 
   afterAll(async () => {
+    if (lock !== undefined) {
+      await lock.query("SELECT pg_advisory_unlock($1)", [APPROVAL_TABLE_LOCK]);
+      lock.release();
+    }
     if (pool !== undefined) {
       await pool.end();
     }
