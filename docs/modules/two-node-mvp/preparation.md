@@ -21,16 +21,17 @@ Resolved since that check:
 - D5 chose a future-only half-open UTC interval, at most 7 days ahead and 4 hours long, boolean output, and the process-local caller and node budgets.
 - D6 chose local owner or operator access, a 30-day maximum retention, minimized export, deletion of retained records, and no remote audit query.
 - D8 chose standard HTTPS with mutual TLS, no custom cryptography, success `{ result: boolean }`, and denial `{ outcome: "unavailable" }`.
-- PO-REL-6: PR #60 merged the PostgreSQL relationship revoke. CI executed the integration test. The restart observation in the durability gate is still required before two-node acceptance.
+- PO-REL-6: PR #60 merged the PostgreSQL relationship revoke. PR #85 loads that revoked row in a second process. The probe is not two-node acceptance.
 
 Still open for Issue #13:
 
 - Replay protection and handshake freshness. The numeric window is not chosen. That is not a new Reserved Product Decision.
-- A two-process run that loads the revoked relationship from PostgreSQL after restart.
-- Whole-module messaging acceptance. PR #55 merged only the in-process availability boundary.
+- Whole-module messaging acceptance. The in-process boundary and the two-process probes are on main. They are not that acceptance.
 - Human Product Owner acceptance of the demonstration. Engineering Accepted is not claimed.
 
-Process-local slices for skills and policy, approval, audit, and availability are Engineering Accepted, with human acceptance pending. Preparation of the thin CLI may continue. An in-memory run is still not two-node acceptance.
+PR #85 is on main. A restarted process loads the revoked relationship, returns `{ outcome: "unavailable" }`, reads no context, and leaves the approved ASK approved. That probe is not Issue #13 acceptance.
+
+Process-local slices for skills and policy, approval, audit, and availability are Engineering Accepted, with human acceptance pending. PR #63 added the thin local CLI. Its only command is `request`. It does not grant or revoke. An in-memory run and that adapter are still not two-node acceptance.
 
 ## Question this note answers
 
