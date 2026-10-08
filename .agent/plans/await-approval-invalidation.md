@@ -56,7 +56,7 @@ Independent review is required before merge. This plan does not accept Issue
 
 ## Progress
 
-- [x] 2026-10-08 Await the port and cover a rejected and a delayed Promise
+- [x] 2026-10-08 Await the port. A rejected Promise fails closed. The delay test stays pending across a macrotask while that Promise is open.
 
 ## Handoff and completion evidence
 

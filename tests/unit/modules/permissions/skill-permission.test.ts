@@ -438,7 +438,12 @@ describe("skill permission", () => {
       settled = true;
       return result;
     });
-    await Promise.resolve();
+    // Async revoke frames settle on later microtasks even when the invalidator
+    // is not awaited. A macrotask runs only after that chain, so the gate must
+    // still be open here or the wait is not proven.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(started).toBe(true);
     expect(settled).toBe(false);
     releaseInvalidation();
