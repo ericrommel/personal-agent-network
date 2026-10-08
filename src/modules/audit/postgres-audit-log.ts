@@ -22,7 +22,8 @@ const INVALID: AuditError = Object.freeze({ code: "AUDIT_COMMAND_INVALID" });
 
 /**
  * Minimized audit rows. Instants stay text. No availability result, profile, secret, or message.
- * This log is not wired into the node and is not restart-safe acceptance.
+ * The node can append through an injected log. It does not construct this class.
+ * A restarted read is not Issue #12 acceptance.
  */
 export const AUDIT_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS audit_records (
   audit_id text PRIMARY KEY,

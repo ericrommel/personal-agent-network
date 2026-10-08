@@ -21,9 +21,9 @@ const notFound = (): SkillPermissionError => Object.freeze({ code: "SKILL_PERMIS
  * ALLOW/ASK/DENY source. It stores no kind, email, profile, calendar, boolean,
  * secret, or event. `kind` is rebuilt on read. A failed sink rolls back an
  * insert and does not undo a committed revoke. The method names differ from
- * SkillPermissionStorePort. Sharing those names would make this class
- * assignable to the port, and the synchronous service would commit a revoke
- * without calling invalidateUnreleased. SkillPermissionService is not wired here.
+ * SkillPermissionStorePort, so this class is not that port.
+ * SkillPermissionService awaits port results. The node does not construct
+ * this class.
  */
 export const SKILL_PERMISSION_SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS skill_permission_records (
   pair_key text PRIMARY KEY,
