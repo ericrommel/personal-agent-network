@@ -20,6 +20,13 @@ export {
   type SkillPermissionId,
 } from "./domain/skill-permission.js";
 export { InMemorySkillPermissionStore } from "./in-memory-skill-permission-store.js";
+export type { SqlPool } from "./postgres-skill-permission-store.js";
+export {
+  applySkillPermissionSchema,
+  createPgPool,
+  PostgresSkillPermissionStore,
+  SKILL_PERMISSION_SCHEMA_SQL,
+} from "./postgres-skill-permission-store.js";
 export type {
   PermissionPartyPort,
   SkillPermissionEventSink,
