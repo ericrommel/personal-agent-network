@@ -13,4 +13,11 @@ export {
 } from "./contracts.js";
 export { principalFromUriSan } from "./mtls-principal.js";
 export { acceptRemoteEnvelope, type AcceptedEnvelope } from "./remote-envelope.js";
+export type { SqlPool } from "./postgres-replay-store.js";
+export {
+  applyReplaySchema,
+  createPgPool,
+  PostgresReplayStore,
+  REPLAY_SCHEMA_SQL,
+} from "./postgres-replay-store.js";
 export { InMemoryReplayStore, type ReplayDecision, type ReplayStore } from "./replay-store.js";
