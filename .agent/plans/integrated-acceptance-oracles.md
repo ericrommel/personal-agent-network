@@ -51,6 +51,7 @@ A skipped local database run is not live evidence. The authorized boolean is fal
 ## Progress
 
 - [ ] 2026-10-08: Oracles added on `feat/integrated-acceptance-oracles`. Review and CI are still open.
+- [ ] 2026-10-08: Quality executed the demonstration, then `ask-advertisement-restore` hit the 5 second default while waiting on the shared locks. The Vitest timeout is 30 seconds.
 
 ## Discoveries and decision log
 

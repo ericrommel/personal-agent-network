@@ -2,6 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // The two-process demonstration holds the shared advisory locks longer than
+    // Vitest's 5 second default. Waiters must outlast that critical section.
+    hookTimeout: 30_000,
+    testTimeout: 30_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],
