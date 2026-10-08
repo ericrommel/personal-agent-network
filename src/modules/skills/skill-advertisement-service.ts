@@ -85,7 +85,7 @@ export class SkillAdvertisementService {
 
   async readAdvertised(agentId: unknown, skillVersion: unknown): Promise<boolean> {
     try {
-      const found = this.#store.findCurrent(agentId, skillVersion);
+      const found = await this.#store.findCurrent(agentId, skillVersion);
       if (!isCurrentAdvertisement(found, agentId, skillVersion)) {
         return false;
       }
@@ -93,7 +93,7 @@ export class SkillAdvertisementService {
       if (!matchesEligibleAgent(party, found.agentId)) {
         return false;
       }
-      const current = this.#store.findCurrent(agentId, skillVersion);
+      const current = await this.#store.findCurrent(agentId, skillVersion);
       return (
         isSkillAdvertisement(current) &&
         current.status === "advertised" &&
@@ -129,7 +129,7 @@ export class SkillAdvertisementService {
       if (action === "advertise") {
         return await this.#advertise(parsed, correlationId, sourceKey);
       }
-      return this.#withdraw(parsed, correlationId, sourceKey);
+      return await this.#withdraw(parsed, correlationId, sourceKey);
     } catch {
       return rejected("SKILL_ADVERTISEMENT_DEPENDENCY_FAILED");
     }
@@ -152,7 +152,7 @@ export class SkillAdvertisementService {
       return rejected("SKILL_ADVERTISEMENT_PARTY_INELIGIBLE");
     }
     const created = createStoredSkillAdvertisement(parsed.agentId);
-    const stored = this.#store.insertAdvertised(
+    const stored = await this.#store.insertAdvertised(
       created,
       acceptedEvent(correlationId, sourceKey, "advertise"),
     );
@@ -166,12 +166,12 @@ export class SkillAdvertisementService {
     return rejected("SKILL_ADVERTISEMENT_DEPENDENCY_FAILED");
   }
 
-  #withdraw(
+  async #withdraw(
     parsed: ParsedCommand,
     correlationId: string,
     sourceKey: string,
-  ): Result<SkillAdvertisement, SkillAdvertisementError> {
-    const stored = this.#store.withdrawMatching(
+  ): Promise<Result<SkillAdvertisement, SkillAdvertisementError>> {
+    const stored = await this.#store.withdrawMatching(
       parsed.agentId,
       AVAILABILITY_SKILL_VERSION_V1,
       parsed.advertisementId,
