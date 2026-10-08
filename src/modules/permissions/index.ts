@@ -1,4 +1,8 @@
 export {
+  AwaitedSkillPermissionStore,
+  type DurableSkillPermissionCommands,
+} from "./awaited-skill-permission-store.js";
+export {
   AVAILABILITY_PURPOSE_V1,
   AVAILABILITY_SCOPE_V1,
   AVAILABILITY_SKILL_VERSION_V1,
@@ -20,13 +24,6 @@ export {
   type SkillPermissionId,
 } from "./domain/skill-permission.js";
 export { InMemorySkillPermissionStore } from "./in-memory-skill-permission-store.js";
-export type { SqlPool } from "./postgres-skill-permission-store.js";
-export {
-  applySkillPermissionSchema,
-  createPgPool,
-  PostgresSkillPermissionStore,
-  SKILL_PERMISSION_SCHEMA_SQL,
-} from "./postgres-skill-permission-store.js";
 export type {
   PermissionPartyPort,
   SkillPermissionEventSink,
@@ -34,6 +31,13 @@ export type {
   TrustedPermissionSource,
   UnreleasedApprovalPort,
 } from "./ports.js";
+export type { SqlPool } from "./postgres-skill-permission-store.js";
+export {
+  applySkillPermissionSchema,
+  createPgPool,
+  PostgresSkillPermissionStore,
+  SKILL_PERMISSION_SCHEMA_SQL,
+} from "./postgres-skill-permission-store.js";
 export {
   SkillPermissionService,
   type SkillPermissionServiceDependencies,
