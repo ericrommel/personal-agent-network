@@ -1,8 +1,12 @@
 # Human Product Owner Decision Packet
 
-Date: 2026-10-07. This packet batches the open Product Review Queue items.
-It does not approve any reserved choice. Engineering continues on every
-workstream that is not named as blocked.
+Resolved on 2026-10-08. The Human Product Owner approved D1 through D8 as
+recorded below and ratified PRQ-002 completion, PRQ-011, PRQ-014, and the
+PR #52 evidence fixes. Those decisions are not open. Engineering implements
+them without another Product Owner gate.
+
+The recommendations below are the approved text. Later notes in this file that
+say a decision is waiting are historical and are superseded by this resolution.
 
 Queue classes:
 
