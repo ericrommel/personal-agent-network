@@ -539,4 +539,26 @@ describe("relationship service", () => {
     ).toEqual({ code: "RELATIONSHIP_DEPENDENCY_FAILED" });
     expect(store.findByDirectedPair(FROM, TO)).toBeNull();
   });
+
+  it("awaits a store that returns promises", async () => {
+    const memory = new InMemoryRelationshipStore({
+      record() {
+        /* wrapped below */
+      },
+    });
+    const asyncStore: RelationshipStorePort = {
+      insertActive: (record, value) => Promise.resolve(memory.insertActive(record, value)),
+      revokeMatching: (from, to, relationshipId, value) =>
+        Promise.resolve(memory.revokeMatching(from, to, relationshipId, value)),
+      findByDirectedPair: (from, to) => Promise.resolve(memory.findByDirectedPair(from, to)),
+    };
+    const { service } = harness(undefined, { store: asyncStore });
+    const created = unwrap(await service.create(source(), createCommand()));
+
+    expect(await service.readActive(FROM, TO)).toBe(true);
+    expect(await service.revoke(source(), revokeCommand(created.id))).toMatchObject({
+      ok: true,
+    });
+    expect(await service.readActive(FROM, TO)).toBe(false);
+  });
 });

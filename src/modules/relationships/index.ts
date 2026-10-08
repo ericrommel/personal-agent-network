@@ -17,6 +17,13 @@ export {
   revokeRelationship,
 } from "./domain/relationship.js";
 export { InMemoryRelationshipStore } from "./in-memory-relationship-store.js";
+export {
+  applyRelationshipSchema,
+  createPgPool,
+  PostgresRelationshipStore,
+  RELATIONSHIP_SCHEMA_SQL,
+} from "./postgres-relationship-store.js";
+export type { SqlPool } from "./postgres-relationship-store.js";
 export type {
   RelationshipEventSink,
   RelationshipPartyPort,
