@@ -13,6 +13,7 @@ This note records that acceptance. It does not grant a broader external-AI platf
 `pan_availability_check`. PAN resolves the label locally, checks the D5
 interval, and posts one mutual-TLS availability envelope. The provider receives
 only the public result. The local caller receives that same public object.
+That return is main `ab316533a4feb56e9ad8c0271a9e735e84bb3b56` (PR #118).
 Model text is an optional untrusted phrase and cannot replace the object.
 ADR-0008 records the adapter choice.
 

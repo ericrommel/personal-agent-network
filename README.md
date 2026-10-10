@@ -35,4 +35,4 @@ Never work directly on `main`. Use a focused branch and Pull Request, reference 
 
 Issues #6 through #14 are Done for their accepted bounded slices. The Human Product Owner accepted Authenticated Messaging on 2026-10-09 and the ADR-0008 external-AI availability slice on 2026-10-09. `src/main.ts` prints foundation status and does not listen.
 
-`answerAvailabilityQuestion` returns the authorized public availability object to the local caller. Any model sentence is untrusted display text and does not replace that object. The provider still receives only that public object. No new Reserved Product Decision is open.
+`answerAvailabilityQuestion` returns the authorized public availability object to the local caller. That return is main `ab316533a4feb56e9ad8c0271a9e735e84bb3b56` (PR #118). Any model sentence is untrusted display text and does not replace that object. The provider still receives only that public object. No new Reserved Product Decision is open.

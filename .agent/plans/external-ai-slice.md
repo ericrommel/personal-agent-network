@@ -88,5 +88,6 @@ https://github.com/ericrommel/personal-agent-network/pull/115#issuecomment-60709
 found no blocking defect. The Human Product Owner accepted the slice on
 2026-10-09:
 https://github.com/ericrommel/personal-agent-network/issues/14#issuecomment-6076260586.
-The local caller now receives the authorized public object beside any model
-sentence.
+PR #118, squash `ab316533a4feb56e9ad8c0271a9e735e84bb3b56`, returns the
+authorized public object to the local caller beside any model sentence.
+Provider egress is unchanged.

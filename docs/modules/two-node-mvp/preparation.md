@@ -25,11 +25,11 @@ Resolved since that check:
 
 The Human Product Owner accepted the demonstration on 2026-10-08: https://github.com/ericrommel/personal-agent-network/issues/14#issuecomment-6069966899. Engineering recorded that instruction. It did not grant the acceptance.
 
-Engineering Accepted for the demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). ADR-0007 records the 5-minute validity window and 30-second skew. Issue #9 records Engineering Accepted for the bounded messaging ingress separately. Human Product Owner acceptance of Issue #9 is not recorded. `src/main.ts` and the CLI do not listen.
+Engineering Accepted for the demonstration is main `7d47568533f8e2216ddcdd13d5c969d905fb6e08` (PR #111). ADR-0007 records the 5-minute validity window and 30-second skew. Issue #9 is Done for that bounded ingress. The Human Product Owner accepted it on 2026-10-09: https://github.com/ericrommel/personal-agent-network/issues/9#issuecomment-6076260121. `src/main.ts` and the CLI do not listen.
 
 PR #85 is on main. A restarted process loads the revoked relationship, returns `{ outcome: "unavailable" }`, reads no context, and leaves the approved ASK approved. That probe is not Issue #13 acceptance.
 
-Process-local slices for skills and policy, approval, audit, and availability are Engineering Accepted, with human acceptance pending. PR #63 added the thin local CLI. Its only command is `request`. It does not grant or revoke. An in-memory run and that adapter are still not two-node acceptance.
+Process-local slices for skills and policy, approval, audit, and availability are Done. Human Product Owner acceptance is recorded on 2026-10-08 for Issue #8 (https://github.com/ericrommel/personal-agent-network/issues/8#issuecomment-6069958023), Issue #10 (https://github.com/ericrommel/personal-agent-network/issues/10#issuecomment-6069959252), Issue #11 (https://github.com/ericrommel/personal-agent-network/issues/11#issuecomment-6069960508), and Issue #12 (https://github.com/ericrommel/personal-agent-network/issues/12#issuecomment-6069961802). PR #63 added the thin local CLI. Its only command is `request`. It does not grant or revoke. An in-memory run and that adapter are still not two-node acceptance.
 
 ## Question this note answers
 
