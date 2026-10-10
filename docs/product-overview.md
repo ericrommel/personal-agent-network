@@ -390,10 +390,8 @@ This hypothesis must continue to be validated against the market.
 
 ## 18. Current Product Status
 
-PAN is currently in:
+The bounded MVP is accepted through External AI Integration, Issue #14.
 
-**Pre-MVP / architecture and requirements definition.**
+Two personal agents can exchange one authorized availability boolean. An external model can ask that question and receive only the public result. The local caller receives that same public object. Model text cannot replace it.
 
-No production architecture should be considered final.
-
-Early implementation should prioritize learning and validation over feature breadth.
+`src/main.ts` and the CLI do not listen. A broader external-AI platform, a product UI, a real calendar, and general tool execution are not authorized.

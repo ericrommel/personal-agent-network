@@ -194,8 +194,8 @@ not cross a Reserved Product Decision, revision is inexpensive, assumptions
 are explicit, and tests isolate the assumption. If a later decision changes
 the assumption, update the implementation.
 
-Issue #14 External AI stays post-core-MVP unless a concrete dependency
-question justifies research.
+Issue #14's bounded ADR-0008 slice is Done. A broader external-AI platform is
+not authorized.
 
 ## Parallel work and subtasks
 
