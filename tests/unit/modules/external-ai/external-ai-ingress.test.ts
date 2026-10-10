@@ -302,7 +302,10 @@ describe("external AI over mutual TLS", () => {
             input,
           ),
       );
-      expect(answer).toEqual({ answer: "Maria is not available then." });
+      expect(answer).toEqual({
+        result: { result: false },
+        answer: "Maria is not available then.",
+      });
       expect(seenTarget).toBe(TO);
       expect(reads).toBeGreaterThan(0);
       expect(seen[1]).toMatchObject({ prior: { output: '{"result":false}' } });
@@ -493,7 +496,10 @@ describe("external AI over mutual TLS", () => {
             input,
           ),
       );
-      expect(answer).toEqual({ answer: "I cannot answer that." });
+      expect(answer).toEqual({
+        result: { outcome: "unavailable" },
+        answer: "I cannot answer that.",
+      });
       expect(reads).toBe(0);
       expect(seen[1]).toMatchObject({ prior: { output: '{"outcome":"unavailable"}' } });
       expect(JSON.stringify(seen)).not.toContain(BUSY_START);

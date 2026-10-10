@@ -2,7 +2,7 @@
 
 Personal Agent Network (PAN) explores secure communication between personal AI agents controlled by different people. Its MVP will prove that one agent can return a useful result derived from private context while the receiving person gets only the explicitly authorized disclosure.
 
-The engineering foundation, **Identity Model**, **Privacy-Preserving Discovery**, and the approved **Relationships** slice are engineering-accepted. Later modules proceed in parallel when their hard dependencies allow it.
+The bounded MVP is accepted through External AI Integration. Later work stays inside those decisions unless a new Reserved Product Decision is opened.
 
 ## Repository map
 
@@ -31,10 +31,8 @@ npm start
 
 Never work directly on `main`. Use a focused branch and Pull Request, reference requirement and acceptance-criteria IDs, and record consequential decisions in ADRs. Human Product Owner checkpoints are asynchronous. Continue unless the work is unsafe or a Reserved Product Decision. See [AGENTS.md](AGENTS.md), [the development process](docs/engineering/development-process.md), and [the Product Review Queue](docs/product/review-queue.md).
 
-## Current module
+## Current status
 
-**Privacy-Preserving Discovery** is `Done` on [Issue #6](https://github.com/ericrommel/personal-agent-network/issues/6). The Human Product Owner accepted it on 2026-10-06, and PR #19 is merged. Its scope is limited to pre-seeded, caller-specific resolution of canonicalized ASCII email addresses to opaque caller-scoped references, with uniform negative responses, layered process-local abuse budgets, and fail-closed event acknowledgement.
+Issues #6 through #14 are Done for their accepted bounded slices. The Human Product Owner accepted Authenticated Messaging on 2026-10-09 and the ADR-0008 external-AI availability slice on 2026-10-09. `src/main.ts` prints foundation status and does not listen.
 
-**Relationships** is `Done` for the approved slice on [Issue #7](https://github.com/ericrommel/personal-agent-network/issues/7). Engineering accepted it under delegated authority in PR #46. Human Product Owner ratification of that completion is still pending. The slice is pre-seeded, directed, node-local, and process-local. It does not include invitation, remote mutation, skill permission, or restart-safe revocation.
-
-**Skills and Policy** is `In Preparation` on [Issue #8](https://github.com/ericrommel/personal-agent-network/issues/8). Authenticated Messaging, Context Boundary, Approval Lifecycle, Audit, and the Two-Node MVP are also in preparation. External AI remains post-core-MVP. Open reserved decisions are listed in the Product Review Queue and block only their own workstreams.
+`answerAvailabilityQuestion` returns the authorized public availability object to the local caller. Any model sentence is untrusted display text and does not replace that object. The provider still receives only that public object. No new Reserved Product Decision is open.

@@ -7,7 +7,12 @@ import {
   MAX_MODEL_TEXT_CHARS,
   MAX_USER_TEXT_CHARS,
 } from "./contracts.js";
-import type { ExternalAiProvider, UntrustedToolCall, UntrustedTurn } from "./provider.js";
+import type {
+  ExternalAiProvider,
+  ProviderCompletion,
+  UntrustedToolCall,
+  UntrustedTurn,
+} from "./provider.js";
 
 const CALL_KEYS = ["who", "start", "end"] as const;
 
@@ -23,20 +28,25 @@ export type AvailabilityQuestion = Readonly<{
   nowMs: number;
 }>;
 
-export type AvailabilityAnswer = Readonly<{ answer: string }> | ReturnType<typeof unavailable>;
+/** `result` is PAN's authorized public object. `answer` is untrusted model text. */
+export type AvailabilityAnswer = Readonly<{
+  result: AvailabilityResponse;
+  answer: string | null;
+}>;
 
 /**
- * Asks one replaceable model to call PAN, then returns only the model's
- * phrasing of the authorized public result. The model cannot grant authority.
+ * Asks one replaceable model to call PAN. The local caller receives the same
+ * public object the provider received. A later model sentence cannot replace it.
  */
 export const answerAvailabilityQuestion = async (
   question: AvailabilityQuestion,
   provider: ExternalAiProvider,
   exchange: AvailabilityExchange,
 ): Promise<AvailabilityAnswer> => {
+  let revealed: AvailabilityResponse | null = null;
   try {
     if (!usableUserText(question.userText)) {
-      return unavailable();
+      return quiet();
     }
     const first = await provider.complete({
       userText: question.userText,
@@ -45,9 +55,9 @@ export const answerAvailabilityQuestion = async (
     });
     const call = singleCall(first?.turn);
     if (first === null || call === null) {
-      return unavailable();
+      return quiet();
     }
-    const revealed = await revealedResult(question, call, exchange);
+    revealed = await revealedResult(question, call, exchange);
     const second = await provider.complete({
       tool: null,
       prior: {
@@ -56,17 +66,24 @@ export const answerAvailabilityQuestion = async (
         output: JSON.stringify(revealed),
       },
     });
-    if (second === null || second.turn.calls.length !== 0) {
-      return unavailable();
-    }
-    const answer = second.turn.text.trim();
-    if (answer.length === 0 || answer.length > MAX_MODEL_TEXT_CHARS) {
-      return unavailable();
-    }
-    return Object.freeze({ answer });
+    return Object.freeze({ result: revealed, answer: phrase(second) });
   } catch {
-    return unavailable();
+    return quiet(revealed);
   }
+};
+
+const quiet = (result: AvailabilityResponse | null = null): AvailabilityAnswer =>
+  Object.freeze({ result: result ?? unavailable(), answer: null });
+
+const phrase = (completion: ProviderCompletion | null): string | null => {
+  if (completion === null || completion.turn.calls.length !== 0) {
+    return null;
+  }
+  const answer = completion.turn.text.trim();
+  if (answer.length === 0 || answer.length > MAX_MODEL_TEXT_CHARS) {
+    return null;
+  }
+  return answer;
 };
 
 const revealedResult = async (

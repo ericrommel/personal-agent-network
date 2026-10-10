@@ -66,7 +66,10 @@ describe("external availability question", () => {
         return { result: false, secret: "busy" } as unknown as { result: false };
       },
     );
-    expect(answer).toEqual({ answer: "Maria is not available then." });
+    expect(answer).toEqual({
+      result: { result: false },
+      answer: "Maria is not available then.",
+    });
     expect(exchanges).toEqual([{ targetAgentId: MARIA, start: START, end: END }]);
     expect(seen[1]).toMatchObject({ prior: { output: '{"result":false}' } });
     expect(JSON.stringify(seen)).not.toContain(MARIA);
@@ -98,7 +101,7 @@ describe("external availability question", () => {
           return { result: true };
         },
       );
-      expect(answer).toEqual(unavailable());
+      expect(answer).toEqual({ result: unavailable(), answer: null });
       expect(exchanges).toBe(0);
       expect(seen).toHaveLength(1);
     }
@@ -149,7 +152,7 @@ describe("external availability question", () => {
         },
       );
       expect(exchanges).toBe(0);
-      expect(answer).toEqual({ answer: "I cannot answer that." });
+      expect(answer).toEqual({ result: unavailable(), answer: "I cannot answer that." });
       expect(seen[1]).toMatchObject({ prior: { output: '{"outcome":"unavailable"}' } });
     }
   });
@@ -172,7 +175,7 @@ describe("external availability question", () => {
         throw new Error("down");
       },
     );
-    expect(thrown).toEqual({ answer: "should not be used" });
+    expect(thrown).toEqual({ result: unavailable(), answer: "should not be used" });
     expect(seen[1]).toMatchObject({ prior: { output: '{"outcome":"unavailable"}' } });
 
     const secondTool = await answerAvailabilityQuestion(
@@ -195,7 +198,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(secondTool).toEqual(unavailable());
+    expect(secondTool).toEqual({ result: { result: true }, answer: null });
   });
 
   it("rejects empty, huge, or unusable model replies and provider failures", async () => {
@@ -204,7 +207,7 @@ describe("external availability question", () => {
       providerWith([], []),
       async () => ({ result: true }),
     );
-    expect(blank).toEqual(unavailable());
+    expect(blank).toEqual({ result: unavailable(), answer: null });
 
     const broken = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -215,7 +218,7 @@ describe("external availability question", () => {
       },
       async () => ({ result: true }),
     );
-    expect(broken).toEqual(unavailable());
+    expect(broken).toEqual({ result: unavailable(), answer: null });
 
     const emptyAnswer = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -231,14 +234,14 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(emptyAnswer).toEqual(unavailable());
+    expect(emptyAnswer).toEqual({ result: { result: true }, answer: null });
 
     const missing = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
       providerWith([], []),
       async () => ({ result: true }),
     );
-    expect(missing).toEqual(unavailable());
+    expect(missing).toEqual({ result: unavailable(), answer: null });
 
     const odd = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -253,7 +256,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(odd).toEqual(unavailable());
+    expect(odd).toEqual({ result: unavailable(), answer: null });
 
     const notBoolean = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -269,7 +272,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: "no" }) as unknown as { result: true },
     );
-    expect(notBoolean).toEqual({ answer: "I cannot answer that." });
+    expect(notBoolean).toEqual({ result: unavailable(), answer: "I cannot answer that." });
 
     const longAnswer = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -285,7 +288,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(longAnswer).toEqual(unavailable());
+    expect(longAnswer).toEqual({ result: { result: true }, answer: null });
 
     const dropped = await answerAvailabilityQuestion(
       { userText: QUESTION, labels, nowMs: NOW },
@@ -300,7 +303,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(dropped).toEqual(unavailable());
+    expect(dropped).toEqual({ result: { result: true }, answer: null });
   });
 
   it("returns the model phrasing of an authorized true result and rejects bad user text", async () => {
@@ -319,7 +322,7 @@ describe("external availability question", () => {
       ),
       async () => ({ result: true }),
     );
-    expect(available).toEqual({ answer: "Maria is available then." });
+    expect(available).toEqual({ result: { result: true }, answer: "Maria is available then." });
     expect(seen[1]).toMatchObject({ prior: { output: '{"result":true}' } });
 
     const control = await answerAvailabilityQuestion(
@@ -327,20 +330,63 @@ describe("external availability question", () => {
       providerWith([], []),
       async () => ({ result: true }),
     );
-    expect(control).toEqual(unavailable());
+    expect(control).toEqual({ result: unavailable(), answer: null });
 
     const huge = await answerAvailabilityQuestion(
       { userText: "a".repeat(2_001), labels, nowMs: NOW },
       providerWith([], []),
       async () => ({ result: true }),
     );
-    expect(huge).toEqual(unavailable());
+    expect(huge).toEqual({ result: unavailable(), answer: null });
 
     const untyped = await answerAvailabilityQuestion(
       { userText: 12 as unknown as string, labels, nowMs: NOW },
       providerWith([], []),
       async () => ({ result: true }),
     );
-    expect(untyped).toEqual(unavailable());
+    expect(untyped).toEqual({ result: unavailable(), answer: null });
+  });
+
+  it("keeps the authorized boolean when the model sentence contradicts it", async () => {
+    const answer = await answerAvailabilityQuestion(
+      { userText: QUESTION, labels, nowMs: NOW },
+      providerWith(
+        [
+          {
+            responseId: "resp-1",
+            turn: { text: "", calls: [call({ who: "Maria", start: START, end: END })] },
+          },
+          { responseId: "resp-2", turn: { text: "Maria is available then.", calls: [] } },
+        ],
+        [],
+      ),
+      async () => ({ result: false }),
+    );
+    expect(answer).toEqual({
+      result: { result: false },
+      answer: "Maria is available then.",
+    });
+  });
+
+  it("keeps the authorized boolean when the later provider call throws", async () => {
+    let calls = 0;
+    const answer = await answerAvailabilityQuestion(
+      { userText: QUESTION, labels, nowMs: NOW },
+      {
+        async complete() {
+          calls += 1;
+          if (calls === 1) {
+            return {
+              responseId: "resp-1",
+              turn: { text: "", calls: [call({ who: "Maria", start: START, end: END })] },
+            };
+          }
+          throw new Error("provider down");
+        },
+      },
+      async () => ({ result: false }),
+    );
+    expect(calls).toBe(2);
+    expect(answer).toEqual({ result: { result: false }, answer: null });
   });
 });

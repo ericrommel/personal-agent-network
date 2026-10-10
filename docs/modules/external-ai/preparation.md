@@ -2,19 +2,19 @@
 
 ## Status
 
-Issue #14, External AI Integration. The Human Product Owner approved Ready for
-Development on 2026-10-08. Engineering Accepted for the bounded ADR-0008 slice
-is main `82d5be381efa117cc6bfaf65eb510b8415c15b19` (PR #115). The module is
-Ready for PO Acceptance. This note does not record Human Product Owner
-acceptance.
+Issue #14, External AI Integration, is Done for the bounded ADR-0008 slice.
+The Human Product Owner accepted it on 2026-10-09:
+https://github.com/ericrommel/personal-agent-network/issues/14#issuecomment-6076260586.
+This note records that acceptance. It does not grant a broader external-AI platform.
 
 ## Slice
 
 `answerAvailabilityQuestion` asks one `ExternalAiProvider` to call
 `pan_availability_check`. PAN resolves the label locally, checks the D5
-interval, and posts one mutual-TLS availability envelope. The provider then
-receives only the public result and may phrase it. ADR-0008 records the
-adapter choice.
+interval, and posts one mutual-TLS availability envelope. The provider receives
+only the public result. The local caller receives that same public object.
+Model text is an optional untrusted phrase and cannot replace the object.
+ADR-0008 records the adapter choice.
 
 ## Non-goals
 
